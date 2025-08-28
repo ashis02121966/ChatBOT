@@ -301,6 +301,35 @@ export class DatabaseService {
     return data || [];
   }
 
+  async createDocumentImages(imagesData: any[]): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('document_images')
+      .insert(imagesData)
+      .select();
+
+    if (error) {
+      console.error('Error creating document images:', error);
+      throw error;
+    }
+
+    return data || [];
+  }
+
+  async getDocumentImages(documentId: string): Promise<any[]> {
+    const { data, error } = await supabase
+      .from('document_images')
+      .select('*')
+      .eq('document_id', documentId)
+      .order('created_at', { ascending: true });
+
+    if (error) {
+      console.error('Error fetching document images:', error);
+      throw error;
+    }
+
+    return data || [];
+  }
+
   async getDocumentChunks(documentId: string): Promise<DocumentChunk[]> {
     const { data, error } = await supabase
       .from('document_chunks')

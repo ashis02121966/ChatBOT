@@ -262,85 +262,115 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       throw new Error('User must be logged in to process documents');
     }
 
-    // Hybrid approach: Client-side for SLM learning + Server-side for enhanced context
-    console.log('Processing document with hybrid approach: client-side for SLM + server-side for enhanced context');
+    console.log(`Processing document: ${file.name} for survey: ${surveyId}, category: ${category}`);
     
-    // Always process client-side for SLM learning
-    const clientDoc = await processDocumentClientSide(file, surveyId, category);
-    
-    // Save to database
     try {
-      await databaseService.createDocument({
-        file_name: clientDoc.fileName,
-        survey_id: clientDoc.surveyId,
-        category: clientDoc.category,
-        content: clientDoc.content,
-        file_type: clientDoc.metadata.fileType,
-        word_count: clientDoc.metadata.wordCount,
-        character_count: clientDoc.metadata.characterCount,
-        chunk_count: clientDoc.metadata.chunkCount,
-        image_count: clientDoc.metadata.imageCount,
-        processing_method: clientDoc.metadata.processingMethod,
-        user_id: user.id
-      });
-
-      // Save document chunks
-      const chunksData = clientDoc.chunks.map(chunk => ({
-        content: chunk.content,
-        section: chunk.metadata.section,
-        keywords: chunk.metadata.keywords,
-        entities: chunk.metadata.entities,
-        word_count: chunk.metadata.wordCount,
-        character_count: chunk.metadata.characterCount,
-        content_type: chunk.metadata.contentType,
-        importance: chunk.metadata.importance || 1.0,
-        is_admin_answer: chunk.metadata.isAdminAnswer || false,
-        original_question: chunk.metadata.originalQuestion,
-        admin_answer: chunk.metadata.adminAnswer,
-        admin_answer_rich: chunk.metadata.adminAnswerRich
-      }));
-
-      await databaseService.createDocumentChunks(chunksData);
-      console.log('Document saved to database successfully');
-    } catch (dbError) {
-      console.error('Failed to save document to database:', dbError);
-      // Continue with local storage as fallback
-    }
-
-    // Also try server-side processing for enhanced context (non-blocking)
-    try {
-      // Check if server is available first
-      const isServerHealthy = await documentService.checkServerHealth();
-      if (isServerHealthy) {
-        const serverResult = await documentService.processDocument(file, surveyId);
-        if (serverResult) {
-          console.log('Server-side processing successful - enhanced context available');
-          
-          // Add category to server result
-          serverResult.category = category;
-          
-          // Merge server results with client results, prioritizing server images
-          if (serverResult.images && serverResult.images.length > 0) {
-            console.log(`Server extracted ${serverResult.images.length} images`);
-            // Update the client document with server images
-            setDocuments(prev => prev.map(doc => 
-              doc.fileName === clientDoc.fileName && doc.surveyId === clientDoc.surveyId
-                ? { ...doc, images: serverResult.images, metadata: { ...doc.metadata, imageCount: serverResult.images.length } }
-                : doc
-            ));
-          }
-          
-          setServerProcessedDocuments(prev => [...prev, serverResult]);
-        }
-      } else {
-        console.log('Server not available, using client-side processing only');
+      // Process document using server-side service with database integration
+      const processedDoc = await documentService.processDocument(file, surveyId);
+      
+      // Save document and chunks to database
+      const savedDocument = await saveDocumentToDatabase(processedDoc, surveyId, category, user.id);
+      
+      if (!savedDocument) {
+        throw new Error('Failed to save processed document to database');
       }
+      
+      // Create enhanced document for local state
+      const enhancedDoc: ProcessedDocument = {
+        id: savedDocument.id,
+        fileName: savedDocument.file_name,
+        surveyId: surveyId,
+        category: category,
+        content: savedDocument.content,
+        chunks: processedDoc.chunks || [],
+        images: processedDoc.images || [],
+        metadata: savedDocument.metadata || {}
+      };
+      
+      // Add to local state
+      setDocuments(prev => [...prev, enhancedDoc]);
+      
+      console.log('Document processed and saved successfully:', enhancedDoc.fileName);
+      return enhancedDoc;
     } catch (error) {
-      console.log('Server-side processing failed, using client-side only:', error?.message || 'Unknown error');
-      // Silently continue with client-side processing - this is expected behavior
+      console.error('Document processing failed:', error);
+      throw error;
     }
-    
-    return clientDoc;
+  };
+
+  const saveDocumentToDatabase = async (
+    processedDoc: any, 
+    surveyId: string, 
+    category: string, 
+    userId: string
+  ) => {
+    try {
+      // Create document record
+      const documentData = {
+        id: processedDoc.id,
+        file_name: processedDoc.fileName,
+        survey_id: surveyId,
+        category: category,
+        content: processedDoc.content,
+        file_type: processedDoc.metadata?.fileType || 'unknown',
+        upload_date: new Date().toISOString(),
+        processed_date: new Date().toISOString(),
+        word_count: processedDoc.metadata?.wordCount || 0,
+        character_count: processedDoc.metadata?.characterCount || 0,
+        chunk_count: processedDoc.chunks?.length || 0,
+        image_count: processedDoc.images?.length || 0,
+        processing_method: 'server-side',
+        is_admin_generated: false,
+        user_id: userId
+      };
+      
+      console.log('Creating document in database:', documentData);
+      const savedDocument = await databaseService.createDocument(documentData);
+      
+      if (!savedDocument) {
+        throw new Error('Failed to create document record');
+      }
+      
+      // Create document chunks
+      if (processedDoc.chunks && processedDoc.chunks.length > 0) {
+        const chunksData = processedDoc.chunks.map((chunk: any) => ({
+          id: chunk.id,
+          document_id: savedDocument.id,
+          content: chunk.content,
+          section: chunk.metadata?.section || 'Section',
+          keywords: chunk.metadata?.keywords || [],
+          entities: chunk.metadata?.entities || [],
+          word_count: chunk.metadata?.wordCount || 0,
+          character_count: chunk.metadata?.characterCount || 0,
+          content_type: chunk.metadata?.contentType || 'general',
+          importance: chunk.metadata?.importance || 1.0,
+          is_admin_answer: false
+        }));
+        
+        console.log(`Creating ${chunksData.length} document chunks`);
+        await databaseService.createDocumentChunks(chunksData);
+      }
+      
+      // Create document images if any
+      if (processedDoc.images && processedDoc.images.length > 0) {
+        const imagesData = processedDoc.images.map((image: any) => ({
+          id: image.id,
+          document_id: savedDocument.id,
+          file_name: image.fileName,
+          description: image.description,
+          image_type: image.type || 'document',
+          data_url: image.dataUrl
+        }));
+        
+        console.log(`Creating ${imagesData.length} document images`);
+        await databaseService.createDocumentImages(imagesData);
+      }
+      
+      return savedDocument;
+    } catch (error) {
+      console.error('Error saving document to database:', error);
+      throw error;
+    }
   };
 
   const processDocumentClientSide = async (file: File, surveyId: string, category: string) => {
@@ -582,91 +612,87 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const deleteDocument = (documentId: string) => {
-    console.log(`🗑️ Deleting document with ID: ${documentId}`);
-    
-    // Remove from client-side documents
-    setDocuments(prev => {
-      const filtered = prev.filter(doc => doc.id !== documentId);
-      console.log(`📚 Removed from client-side documents: ${prev.length} -> ${filtered.length}`);
-      return filtered;
+    // Delete from database first
+    databaseService.deleteDocument(documentId).then(() => {
+      console.log('Document deleted from database:', documentId);
+    }).catch(error => {
+      console.error('Error deleting document from database:', error);
     });
     
-    // Remove from server-side documents
-    setServerProcessedDocuments(prev => {
-      const filtered = prev.filter(doc => doc.id !== documentId);
-      if (filtered.length !== prev.length) {
-        console.log(`🖥️ Removed from server-side documents: ${prev.length} -> ${filtered.length}`);
-      }
-      return filtered;
-    });
-    
-    console.log(`✅ Document ${documentId} deleted successfully`);
+    // Remove from local state
+    setDocuments(prev => prev.filter(doc => doc.id !== documentId));
   };
 
   const searchDocuments = (query: string, surveyId?: string, category?: string): DocumentChunk[] => {
+    // Use database search for better performance and accuracy
+    return searchDocumentsInDatabase(query, surveyId, category);
+  };
+  
+  const searchDocumentsInDatabase = async (query: string, surveyId?: string, category?: string): Promise<any[]> => {
+    try {
+      // Search document chunks in database
+      const chunks = await databaseService.searchDocumentChunks(query, surveyId, category);
+      
+      // Transform database chunks to expected format
+      return chunks.map(chunk => ({
+        id: chunk.id,
+        content: chunk.content,
+        metadata: {
+          ...chunk.metadata,
+          fileName: chunk.documents?.file_name || 'Unknown',
+          category: chunk.documents?.category || 'General Questions',
+          section: chunk.section || 'Section',
+          keywords: chunk.keywords || [],
+          entities: chunk.entities || [],
+          wordCount: chunk.word_count || 0,
+          characterCount: chunk.character_count || 0,
+          contentType: chunk.content_type || 'general',
+          importance: chunk.importance || 1.0,
+          isAdminAnswer: chunk.is_admin_answer || false
+        }
+      }));
+    } catch (error) {
+      console.error('Error searching documents in database:', error);
+      // Fallback to local search if database search fails
+      return searchDocumentsLocally(query, surveyId, category);
+    }
+  };
+  
+  const searchDocumentsLocally = (query: string, surveyId?: string, category?: string): any[] => {
+    // Fallback local search implementation
+    let filteredDocs = documents.filter(doc => {
+      const matchesSurvey = !surveyId || doc.surveyId === surveyId;
+      const matchesCategory = !category || doc.category === category;
+      return matchesSurvey && matchesCategory;
+    });
+
+    if (!query.trim()) {
+      return filteredDocs.flatMap(doc => doc.chunks || []);
+    }
+
     const queryLower = query.toLowerCase();
-    const queryWords = queryLower.split(/\s+/).filter(word => word.length > 2);
-    
-    console.log(`🔍 Searching documents: Survey="${surveyId || 'All'}", Category="${category || 'All'}"`);
-    
-    // Filter documents by survey and category if specified
-    const clientDocuments = surveyId 
-      ? documents.filter(doc => {
-          const matchesSurvey = doc.surveyId === surveyId || (doc.metadata.isAdminGenerated && doc.surveyId === 'general');
-          const matchesCategory = !category || doc.category === category || (doc.metadata.isAdminGenerated);
-          return matchesSurvey && matchesCategory;
-        })
-      : documents;
-    
-    const serverDocuments = surveyId 
-      ? serverProcessedDocuments.filter(doc => {
-          const matchesSurvey = doc.surveyId === surveyId;
-          const matchesCategory = !category || doc.category === category;
-          return matchesSurvey && matchesCategory;
-        })
-      : serverProcessedDocuments;
-    
-    // Combine client and server documents (server takes priority for better extraction quality)
-    const relevantDocuments = [...serverDocuments];
-    
-    // Add client documents that don't duplicate server documents
-    clientDocuments.forEach(clientDoc => {
-      const isDuplicate = clientDocuments.some(clientDoc => 
-        serverDocuments.some(serverDoc => 
-          serverDoc.fileName === clientDoc.fileName && serverDoc.surveyId === clientDoc.surveyId
-        )
-      );
-      if (!isDuplicate) {
-        relevantDocuments.push(clientDoc);
+    const allChunks: any[] = [];
+
+    filteredDocs.forEach(doc => {
+      if (doc.chunks) {
+        doc.chunks.forEach(chunk => {
+          const score = calculateRelevanceScore(chunk, queryLower);
+          if (score > 0) {
+            allChunks.push({
+              ...chunk,
+              relevanceScore: score,
+              metadata: {
+                ...chunk.metadata,
+                fileName: doc.fileName,
+                category: doc.category
+              }
+            });
+          }
+        });
       }
     });
-    
-    // Also include admin answers that might be relevant to any survey
-    const adminAnswers = documents.filter(doc => 
-      doc.metadata.isAdminGenerated && 
-      !relevantDocuments.some(existing => existing.id === doc.id)
-    );
-    
-    // Add admin answers but don't let them dominate the results
-    const limitedAdminAnswers = adminAnswers.slice(0, 2);
-    relevantDocuments.push(...limitedAdminAnswers);
-    
-    console.log(`📊 Found ${relevantDocuments.length} relevant documents (${clientDocuments.length} client, ${serverDocuments.length} server, ${limitedAdminAnswers.length} admin)`);
-    
-    // Get all chunks from relevant documents
-    const allChunks = relevantDocuments.flatMap(doc => doc.chunks);
-    
-    // Score and sort chunks by relevance
-    const scoredChunks = allChunks.map(chunk => ({
-      chunk,
-      score: calculateEnhancedChunkRelevance(chunk, queryWords, queryLower, relevantDocuments, category)
-    })).filter(item => item.score > 0);
-    
-    // Sort by score and return top matches
-    return scoredChunks
-      .sort((a, b) => b.score - a.score)
-      .slice(0, 15)
-      .map(item => item.chunk);
+
+    return allChunks.sort((a, b) => b.relevanceScore - a.relevanceScore);
   };
 
   const searchImages = (query: string, surveyId?: string, category?: string) => {
@@ -725,36 +751,67 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const getDocumentsBySurvey = (surveyId: string, category?: string): ProcessedDocument[] => {
-    const clientDocs = documents.filter(doc => {
-      const matchesSurvey = doc.surveyId === surveyId;
-      const matchesCategory = !category || doc.category === category;
-      return matchesSurvey && matchesCategory;
-    });
-    
-    const serverDocs = serverProcessedDocuments.filter(doc => {
-      const matchesSurvey = doc.surveyId === surveyId;
-      const matchesCategory = !category || doc.category === category;
-      return matchesSurvey && matchesCategory;
-    });
-    
-    // Combine and deduplicate
-    const combined = [...clientDocs];
-    serverDocs.forEach(serverDoc => {
-      const isDuplicate = clientDocs.some(clientDoc => 
-        clientDoc.fileName === serverDoc.fileName
-      );
-      if (!isDuplicate) {
-        combined.push({
-          ...serverDoc,
-          metadata: {
-            ...serverDoc.metadata,
-            processingMethod: 'server-side-enhanced'
-          }
-        });
+    // Load documents from database for the specified survey and category
+    return loadDocumentsFromDatabase(surveyId, category);
+  };
+  
+  const loadDocumentsFromDatabase = async (surveyId: string, category?: string): Promise<ProcessedDocument[]> => {
+    try {
+      const dbDocuments = await databaseService.getDocumentsBySurvey(surveyId, category);
+      
+      // Transform database documents to ProcessedDocument format
+      const processedDocs: ProcessedDocument[] = [];
+      
+      for (const dbDoc of dbDocuments) {
+        // Get chunks for this document
+        const chunks = await databaseService.getDocumentChunks(dbDoc.id);
+        
+        // Get images for this document
+        const images = await databaseService.getDocumentImages(dbDoc.id);
+        
+        const processedDoc: ProcessedDocument = {
+          id: dbDoc.id,
+          fileName: dbDoc.file_name,
+          surveyId: dbDoc.survey_id || surveyId,
+          category: dbDoc.category || 'General Questions',
+          content: dbDoc.content,
+          chunks: chunks.map(chunk => ({
+            id: chunk.id,
+            content: chunk.content,
+            metadata: {
+              section: chunk.section || 'Section',
+              keywords: chunk.keywords || [],
+              entities: chunk.entities || [],
+              wordCount: chunk.word_count || 0,
+              characterCount: chunk.character_count || 0,
+              contentType: chunk.content_type || 'general',
+              importance: chunk.importance || 1.0,
+              isAdminAnswer: chunk.is_admin_answer || false
+            }
+          })),
+          images: images.map(image => ({
+            id: image.id,
+            fileName: image.file_name,
+            description: image.description || '',
+            dataUrl: image.data_url,
+            type: image.image_type || 'document'
+          })),
+          metadata: dbDoc.metadata || {}
+        };
+        
+        processedDocs.push(processedDoc);
       }
-    });
-    
-    return combined;
+      
+      return processedDocs;
+    } catch (error) {
+      console.error('Error loading documents from database:', error);
+      // Fallback to local documents
+      return documents.filter(doc => {
+        const matchesSurvey = doc.surveyId === surveyId;
+        const matchesCategory = !category || doc.category === category;
+        return matchesSurvey && matchesCategory;
+      });
+    }
   };
 
   // Helper functions
