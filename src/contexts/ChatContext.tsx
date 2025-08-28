@@ -150,7 +150,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
   }, [unansweredQueries]); // Removed user?.id dependency
 
-  const createSession = (surveyId: string, category?: string) => {
+  const createSession = async (surveyId: string, category?: string) => {
     if (!user) return;
     
     const newSession: ChatSession = {
