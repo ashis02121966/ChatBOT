@@ -237,8 +237,8 @@ export default function FileManagement() {
     ...filteredDocuments.map(doc => ({
       id: doc.id,
       name: doc.file_name,
-      type: doc.file_type.includes('pdf') ? 'pdf' as const :
-            doc.file_type.includes('word') ? 'doc' as const : 'excel' as const,
+      type: (doc.file_type && doc.file_type.includes('pdf')) ? 'pdf' as const :
+            (doc.file_type && doc.file_type.includes('word')) ? 'doc' as const : 'excel' as const,
       size: doc.word_count * 6, // Approximate size
       uploadDate: new Date(doc.created_at),
       surveyId: doc.survey_id,
