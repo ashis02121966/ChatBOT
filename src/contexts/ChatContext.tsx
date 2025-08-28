@@ -313,14 +313,20 @@ export function ChatProvider({ children }: ChatProviderProps) {
           userId: user.id,
         };
         
-        // Save to database
-        databaseService.createUnansweredQuery({
-          content: content,
-          survey_id: currentSession.surveyId,
-          user_id: user.id
-        }).catch(error => {
-          console.error('Failed to save unanswered query to database:', error);
-        });
+        // Save to database with proper error handling
+        try {
+          const dbQuery = await databaseService.createUnansweredQuery({
+            id: unansweredQuery.id,
+            content: content,
+            survey_id: currentSession.surveyId,
+            user_id: user.id,
+            status: 'pending'
+          });
+          console.log('✅ Unanswered query saved to database:', dbQuery?.id);
+        } catch (error) {
+          console.error('❌ Failed to save unanswered query to database:', error);
+          // Continue with local storage even if database fails
+        }
         
         setUnansweredQueries(prev => [...prev, unansweredQuery]);
         console.log(`Added unanswered query to global list: "${content}" from user ${user.id}`);

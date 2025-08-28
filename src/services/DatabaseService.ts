@@ -483,23 +483,39 @@ export class DatabaseService {
 
   // Unanswered Queries CRUD operations
   async createUnansweredQuery(queryData: Tables['unanswered_queries']['Insert']): Promise<UnansweredQuery | null> {
-    // Ensure we have a valid UUID for the query ID
-    if (queryData.id && typeof queryData.id === 'string' && !queryData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      queryData.id = crypto.randomUUID();
-    }
+    // Clean the query data and ensure proper format
+    const cleanQueryData = {
+      id: this.validateAndGenerateUUID(queryData.id),
+      content: queryData.content,
+      survey_id: queryData.survey_id,
+      user_id: queryData.user_id,
+      status: queryData.status || 'pending',
+      priority: queryData.priority || 1,
+      category: queryData.category || null,
+      tags: queryData.tags || [],
+      context: queryData.context || {}
+    };
     
-    const { data, error } = await supabase
-      .from('unanswered_queries')
-      .insert(queryData)
-      .select()
-      .single();
+    console.log('Inserting unanswered query:', cleanQueryData);
+    
+    try {
+      const { data, error } = await supabase
+        .from('unanswered_queries')
+        .insert(cleanQueryData)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error creating unanswered query:', error);
+      if (error) {
+        console.error('Error creating unanswered query:', error);
+        throw error;
+      }
+
+      console.log('Unanswered query created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Database error creating unanswered query:', error);
       throw error;
     }
-
-    return data;
   }
 
   async getUnansweredQueries(status: 'pending' | 'answered' | 'dismissed' = 'pending'): Promise<UnansweredQuery[]> {
