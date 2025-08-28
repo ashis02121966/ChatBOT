@@ -25,6 +25,9 @@ export interface Database {
           email: string;
           name: string;
           role: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
+          status: 'active' | 'inactive';
+          password_hash: string | null;
+          salt: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -33,6 +36,9 @@ export interface Database {
           email: string;
           name: string;
           role: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
+          status?: 'active' | 'inactive';
+          password_hash?: string | null;
+          salt?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -41,6 +47,9 @@ export interface Database {
           email?: string;
           name?: string;
           role?: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
+          status?: 'active' | 'inactive';
+          password_hash?: string | null;
+          salt?: string | null;
           created_at?: string;
           updated_at?: string;
         };

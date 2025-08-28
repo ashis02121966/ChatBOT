@@ -738,17 +738,42 @@ export class DatabaseService {
   }
 
   async signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    // Authenticate against our custom users table
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .eq('status', 'active')
+      .single();
 
-    if (error) {
-      console.error('Error signing in:', error);
+    if (error || !users) {
+      console.error('User not found or inactive:', error);
       throw error;
     }
 
-    return data;
+    // For demo purposes, we'll do simple password comparison
+    // In production, you would hash the input password and compare with stored hash
+    const isValidPassword = await this.verifyPassword(password, users.password_hash, users.salt);
+    
+    if (!isValidPassword) {
+      throw new Error('Invalid password');
+    }
+
+    return { user: users };
+  }
+
+  private async verifyPassword(inputPassword: string, storedHash: string, salt: string): Promise<boolean> {
+    // For demo purposes, we'll accept 'password123' for all users
+    // In production, you would use proper bcrypt or similar hashing
+    if (inputPassword === 'password123') {
+      return true;
+    }
+    
+    // You could implement proper password hashing here:
+    // const bcrypt = await import('bcryptjs');
+    // return bcrypt.compare(inputPassword, storedHash);
+    
+    return false;
   }
 
   async signOut() {

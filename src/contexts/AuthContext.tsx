@@ -85,30 +85,23 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('🔐 Attempting Supabase authentication for:', email);
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      console.log('🔐 Attempting database authentication for:', email);
+      const { user: dbUser } = await databaseService.signIn(email, password);
 
-      if (data.user && !error) {
-        // Get user profile from database
-        const userProfile = await databaseService.getUserByEmail(email);
-        if (userProfile) {
-          const userData = {
-            id: userProfile.id,
-            name: userProfile.name,
-            email: userProfile.email,
-            role: userProfile.role
-          };
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-          console.log('Supabase authentication successful for:', email);
-          return true;
-        }
+      if (dbUser) {
+        const userData = {
+          id: dbUser.id,
+          name: dbUser.name,
+          email: dbUser.email,
+          role: dbUser.role
+        };
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        console.log('Database authentication successful for:', email);
+        return true;
       }
       
-      console.log('Authentication failed:', error?.message || 'Invalid credentials');
+      console.log('Authentication failed: Invalid credentials');
       return false;
     } catch (error) {
       console.error('Authentication error:', error);
@@ -117,9 +110,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
-    // Sign out from Supabase
-    supabase.auth.signOut();
-    
     setUser(null);
     localStorage.removeItem('user');
     // Clear only user-specific chat sessions, preserve global unanswered queries
