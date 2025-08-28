@@ -19,7 +19,7 @@ export default function FileManagement() {
   const [dragActive, setDragActive] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
-  const { documents, processDocument, getDocumentsBySurvey, deleteDocument } = useDocuments();
+  const { documents, processDocument, deleteDocument } = useDocuments();
   const [documentService] = useState(() => new DocumentService());
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [files, setFiles] = useState<SurveyFile[]>([
@@ -225,21 +225,24 @@ export default function FileManagement() {
     }
   };
 
-  // Get processed documents for the selected survey
-  const processedDocs = selectedSurvey ? (getDocumentsBySurvey(selectedSurvey, selectedCategory) || []) : [];
+  // Filter documents for the selected survey and category
+  const filteredDocuments = documents.filter(doc => 
+    (!selectedSurvey || doc.survey_id === selectedSurvey) && 
+    (!selectedCategory || doc.category === selectedCategory)
+  );
   
   // Merge files and processed documents for display
   const allFiles = [
     ...files.filter(f => (!selectedSurvey || f.surveyId === selectedSurvey) && (!selectedCategory || f.category === selectedCategory)),
-    ...processedDocs.map(doc => ({
+    ...filteredDocuments.map(doc => ({
       id: doc.id,
-      name: doc.fileName,
-      type: doc.metadata.fileType.includes('pdf') ? 'pdf' as const :
-            doc.metadata.fileType.includes('word') ? 'doc' as const : 'excel' as const,
-      size: doc.metadata.wordCount * 6, // Approximate size
-      uploadDate: doc.metadata.uploadDate,
-      surveyId: doc.surveyId,
-      category: doc.category || 'General Questions',
+      name: doc.file_name,
+      type: doc.file_type.includes('pdf') ? 'pdf' as const :
+            doc.file_type.includes('word') ? 'doc' as const : 'excel' as const,
+      size: doc.word_count * 6, // Approximate size
+      uploadDate: new Date(doc.created_at),
+      surveyId: doc.survey_id,
+      category: doc.category,
     }))
   ].filter((file, index, self) => 
     index === self.findIndex(f => f.name === file.name && f.surveyId === file.surveyId && f.category === file.category)
@@ -412,7 +415,7 @@ export default function FileManagement() {
             </h2>
             {selectedSurvey && selectedCategory && (
               <div className="text-sm text-gray-500">
-                {processedDocs.length} processed documents
+                {filteredDocuments.length} processed documents
               </div>
             )}
           </div>
@@ -435,7 +438,7 @@ export default function FileManagement() {
             </div>
           ) : (
             allFiles.map((file) => {
-              const isProcessed = processedDocs.some(doc => doc.fileName === file.name);
+              const isProcessed = filteredDocuments.some(doc => doc.file_name === file.name);
               return (
               <div key={file.id} className="px-6 py-4 flex items-center justify-between">
                 <div className="flex items-center space-x-4">
@@ -452,10 +455,10 @@ export default function FileManagement() {
                             Processed
                           </span>
                           {(() => {
-                            const doc = processedDocs.find(d => d.fileName === file.name);
-                            return doc && doc.images && doc.images.length > 0 ? (
+                            const doc = filteredDocuments.find(d => d.file_name === file.name);
+                            return doc && doc.image_count > 0 ? (
                               <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full">
-                                {doc.images.length} images
+                                {doc.image_count} images
                               </span>
                             ) : null;
                           })()}
@@ -466,8 +469,8 @@ export default function FileManagement() {
                       {formatFileSize(file.size)} • Uploaded {file.uploadDate.toLocaleDateString()}
                       {isProcessed && (
                         <span className="ml-2">• Available to chatbot{(() => {
-                          const doc = processedDocs.find(d => d.fileName === file.name);
-                          return doc && doc.images && doc.images.length > 0 ? ` with ${doc.images.length} visual references` : '';
+                          const doc = filteredDocuments.find(d => d.file_name === file.name);
+                          return doc && doc.image_count > 0 ? ` with ${doc.image_count} visual references` : '';
                         })()}</span>
                       )}
                     </p>
