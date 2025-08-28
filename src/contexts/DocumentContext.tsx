@@ -1251,13 +1251,27 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         description: `Document preview for ${file.name}`,
         dataUrl: dataUrl,
         metadata: processedDoc.metadata,
-        uploaded_by: user?.id
+        uploaded_by: user?.id || null
       };
       
     } catch (error) {
       console.error('Error creating document preview:', error);
       return null;
-    }
+        // Get the current user from database to ensure valid user_id
+        let validUserId = null;
+        if (user?.id) {
+          const dbUser = await databaseService.getUser(user.id);
+          if (dbUser) {
+            validUserId = dbUser.id;
+          }
+        }
+        
+        const documentDataWithValidUser = {
+          ...documentData,
+          uploaded_by: validUserId
+        };
+        
+        const savedDoc = await databaseService.createDocument(documentDataWithValidUser);
   };
 
   const formatFileSize = (bytes: number): string => {
