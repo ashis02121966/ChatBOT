@@ -605,7 +605,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         admin_answer_rich: answer, // Keep rich HTML content
         survey_id: query.surveyId || null,
         images: images.length > 0 ? images : null,
-        created_by: null,
+        created_by: user?.id || null,
         feedback_score: 0,
         times_used: 0
       };
