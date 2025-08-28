@@ -171,9 +171,16 @@ export function ChatProvider({ children }: ChatProviderProps) {
     
     console.log('Creating chat session with user ID:', user.id, 'and data:', sessionData);
     
-    databaseService.createChatSession(sessionData).catch(error => {
+    try {
+      const createdSession = await databaseService.createChatSession(sessionData);
+      if (createdSession) {
+        // Update the session with the database ID
+        newSession.id = createdSession.id;
+        setCurrentSession({ ...newSession, id: createdSession.id });
+      }
+    } catch (error) {
       console.error('Failed to save chat session to database:', error);
-    });
+    }
     
     // Add to user's sessions
     setUserSessions(prev => ({

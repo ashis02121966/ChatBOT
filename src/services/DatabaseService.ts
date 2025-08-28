@@ -33,7 +33,7 @@ export class DatabaseService {
       .from('users')
       .select('*')
       .eq('id', id)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user:', error);
@@ -48,7 +48,7 @@ export class DatabaseService {
       .from('users')
       .select('*')
       .eq('email', email)
-      .single();
+      .maybeSingle();
 
     if (error) {
       console.error('Error fetching user by email:', error);
