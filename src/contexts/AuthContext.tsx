@@ -89,15 +89,22 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const { user: dbUser } = await databaseService.signIn(email, password);
 
       if (dbUser) {
+        // Always fetch fresh user data from database to ensure session has latest info
+        const freshUserData = await databaseService.getUser(dbUser.id);
+        if (!freshUserData) {
+          console.error('User not found in database after authentication');
+          return false;
+        }
+        
         const userData = {
-          id: dbUser.id,
-          name: dbUser.name,
-          email: dbUser.email,
-          role: dbUser.role
+          id: freshUserData.id,
+          name: freshUserData.name,
+          email: freshUserData.email,
+          role: freshUserData.role
         };
         setUser(userData);
         localStorage.setItem('user', JSON.stringify(userData));
-        console.log('Database authentication successful for:', email);
+        console.log('Database authentication successful for:', email, 'User ID:', freshUserData.id);
         return true;
       }
       
