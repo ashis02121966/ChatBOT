@@ -179,15 +179,6 @@ export class DatabaseService {
 
   // Document CRUD operations
   async createDocument(documentData: Tables['documents']['Insert']): Promise<Document | null> {
-    // Validate that the user_id exists in the users table if provided
-    if (documentData.user_id) {
-      const userExists = await this.getUser(documentData.user_id);
-      if (!userExists) {
-        console.warn(`User ${documentData.user_id} not found in users table, setting user_id to null`);
-        documentData.user_id = null;
-      }
-    }
-
     const { data, error } = await supabase
       .from('documents')
       .insert(documentData)
