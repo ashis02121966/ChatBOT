@@ -134,17 +134,30 @@ export class DatabaseService {
   }
 
   async getAllSurveys(): Promise<Survey[]> {
-    const { data, error } = await supabase
-      .from('surveys')
-      .select('*')
-      .order('created_at', { ascending: false });
+    try {
+      // Check if Supabase is properly configured
+      if (!supabase) {
+        throw new Error('Supabase client not initialized');
+      }
 
-    if (error) {
-      console.error('Error fetching surveys:', error);
+      const { data, error } = await supabase
+        .from('surveys')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching surveys:', error);
+        throw error;
+      }
+
+      return data || [];
+    } catch (error) {
+      console.error('Database connection error in getAllSurveys:', error);
+      if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
+        throw new Error('Unable to connect to Supabase. Please check your VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY environment variables.');
+      }
       throw error;
     }
-
-    return data || [];
   }
 
   async updateSurvey(id: string, updates: Tables['surveys']['Update']): Promise<Survey | null> {

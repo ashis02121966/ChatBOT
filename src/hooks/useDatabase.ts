@@ -86,7 +86,9 @@ export function useSurveys() {
       setSurveys(data);
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to fetch surveys');
+      const errorMessage = err instanceof Error ? err.message : 'Failed to fetch surveys';
+      console.error('Error in fetchSurveys:', errorMessage);
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
