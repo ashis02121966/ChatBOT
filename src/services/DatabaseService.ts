@@ -336,6 +336,11 @@ export class DatabaseService {
 
   // Chat Session CRUD operations
   async createChatSession(sessionData: Tables['chat_sessions']['Insert']): Promise<ChatSession | null> {
+    // Ensure we have a valid UUID for the session ID
+    if (sessionData.id && typeof sessionData.id === 'string' && !sessionData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      sessionData.id = crypto.randomUUID();
+    }
+    
     const { data, error } = await supabase
       .from('chat_sessions')
       .insert(sessionData)
@@ -398,6 +403,11 @@ export class DatabaseService {
 
   // Chat Message CRUD operations
   async createChatMessage(messageData: Tables['chat_messages']['Insert']): Promise<ChatMessage | null> {
+    // Ensure we have a valid UUID for the message ID
+    if (messageData.id && typeof messageData.id === 'string' && !messageData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      messageData.id = crypto.randomUUID();
+    }
+    
     const { data, error } = await supabase
       .from('chat_messages')
       .insert(messageData)
@@ -445,6 +455,11 @@ export class DatabaseService {
 
   // Unanswered Queries CRUD operations
   async createUnansweredQuery(queryData: Tables['unanswered_queries']['Insert']): Promise<UnansweredQuery | null> {
+    // Ensure we have a valid UUID for the query ID
+    if (queryData.id && typeof queryData.id === 'string' && !queryData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      queryData.id = crypto.randomUUID();
+    }
+    
     const { data, error } = await supabase
       .from('unanswered_queries')
       .insert(queryData)
@@ -511,6 +526,11 @@ export class DatabaseService {
 
   // Admin Knowledge CRUD operations
   async createAdminKnowledge(knowledgeData: Tables['admin_knowledge']['Insert']): Promise<AdminKnowledge | null> {
+    // Ensure we have a valid UUID for the knowledge ID
+    if (knowledgeData.id && typeof knowledgeData.id === 'string' && !knowledgeData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
+      knowledgeData.id = crypto.randomUUID();
+    }
+    
     const { data, error } = await supabase
       .from('admin_knowledge')
       .insert(knowledgeData)
