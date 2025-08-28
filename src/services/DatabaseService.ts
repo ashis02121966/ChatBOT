@@ -573,6 +573,15 @@ export class DatabaseService {
 
   // Admin Knowledge CRUD operations
   async createAdminKnowledge(knowledgeData: Tables['admin_knowledge']['Insert']): Promise<AdminKnowledge | null> {
+    // Validate that the created_by user exists if provided
+    if (knowledgeData.created_by) {
+      const userExists = await this.getUser(knowledgeData.created_by);
+      if (!userExists) {
+        console.warn(`User ${knowledgeData.created_by} not found in users table, setting created_by to null`);
+        knowledgeData.created_by = null;
+      }
+    }
+
     // Clean the knowledge data and ensure proper format
     const cleanKnowledgeData = {
       id: this.validateAndGenerateUUID(knowledgeData.id),
@@ -581,7 +590,7 @@ export class DatabaseService {
       admin_answer_rich: knowledgeData.admin_answer_rich || null,
       survey_id: knowledgeData.survey_id || null,
       images: knowledgeData.images || null,
-      created_by: knowledgeData.created_by || null,
+      created_by: knowledgeData.created_by,
       feedback_score: knowledgeData.feedback_score || 0,
       times_used: knowledgeData.times_used || 0
     };
