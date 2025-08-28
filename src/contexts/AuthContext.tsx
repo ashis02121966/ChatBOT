@@ -96,14 +96,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Try Supabase authentication first (but don't fail if it doesn't work)
+      // Try Supabase authentication first
       try {
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
 
-        if (data.user && !error) {
+        if (!error && data.user) {
           // Get user profile from database
           const userProfile = await databaseService.getUserByEmail(email);
           if (userProfile) {
@@ -118,9 +118,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('Supabase authentication successful for:', email);
             return true;
           }
+        } else if (error) {
+          console.log('Supabase authentication failed:', error.message);
         }
       } catch (supabaseError) {
-        console.log('Supabase auth failed, falling back to mock authentication:', supabaseError);
+        console.log('Supabase auth error, falling back to mock authentication:', supabaseError.message || supabaseError);
       }
 
       // Mock authentication fallback
