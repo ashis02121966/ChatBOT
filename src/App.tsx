@@ -10,35 +10,36 @@ import ApiDocs from './components/api/ApiDocs';
 import Header from './components/layout/Header';
 import LoadingSpinner from './components/common/LoadingSpinner';
 
-function App() {
-  function AppRoutes() {
-    const { user, loading } = useAuth();
+function AppRoutes() {
+  const { user, loading } = useAuth();
 
-    if (loading) {
-      return <LoadingSpinner />;
-    }
-
-    if (!user) {
-      return <Login />;
-    }
-
-    return (
-      <div className="min-h-screen bg-gray-50">
-        <Header />
-        <main className="pt-16">
-          <Routes>
-            <Route 
-              path="/admin/*" 
-              element={user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/chat" />} 
-            />
-            <Route path="/chat" element={<ChatInterface />} />
-            <Route path="/api-docs" element={<ApiDocs />} />
-            <Route path="/" element={<Navigate to="/chat" />} />
-          </Routes>
-        </main>
-      </div>
-    );
+  if (loading) {
+    return <LoadingSpinner />;
   }
+
+  if (!user) {
+    return <Login />;
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+      <main className="pt-16">
+        <Routes>
+          <Route 
+            path="/admin/*" 
+            element={user.role === 'admin' ? <AdminDashboard /> : <Navigate to="/chat" />} 
+          />
+          <Route path="/chat" element={<ChatInterface />} />
+          <Route path="/api-docs" element={<ApiDocs />} />
+          <Route path="/" element={<Navigate to="/chat" />} />
+        </Routes>
+      </main>
+    </div>
+  );
+}
+
+function App() {
 
   // Add error boundary for debugging
   React.useEffect(() => {
