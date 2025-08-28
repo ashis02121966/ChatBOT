@@ -482,7 +482,7 @@ async function initializeServer() {
     });
 
     // Text extraction endpoint
-    app.post('/api/extract-text', upload.single('document'), (req, res) => {
+    app.post('/api/extract-text', upload.single('document'), async (req, res) => {
       try {
         if (!req.file) {
           return res.status(400).json({
@@ -494,7 +494,11 @@ async function initializeServer() {
         console.log(`Text extraction requested for: ${req.file.originalname}`);
 
         // Clean up uploaded file
-        fs.remove(req.file.path);
+        try {
+          await fs.remove(req.file.path);
+        } catch (cleanupError) {
+          console.error('Error cleaning up file:', cleanupError);
+        }
 
         res.json({
           success: true,
@@ -509,14 +513,29 @@ async function initializeServer() {
         
         // Clean up uploaded file on error
         if (req.file && req.file.path) {
+          try {
+            await fs.remove(req.file.path);
+          } catch (cleanupError) {
+            console.error('Error cleaning up file:', cleanupError);
+          }
+        }
 
-          } catch (error) {
+        res.status(500).json({
+          success: false,
+          error: 'Failed to extract text'
+        });
+      }
+    });
+
+    // Start the server
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+      console.log(`Environment: ${process.env.NODE_ENV || 'development'}`);
+    });
+
+  } catch (error) {
     console.error('Failed to initialize server:', error);
     process.exit(1);
-  }
-      }
-    }
-    )
   }
 }
 
