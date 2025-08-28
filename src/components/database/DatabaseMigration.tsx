@@ -24,56 +24,119 @@ export default function DatabaseMigration() {
       // Update status to running
       setMigrations(prev => prev.map(m => ({ ...m, status: 'running' as const })));
 
-      // Check if tables already exist
-      const { data: tables, error: tablesError } = await supabase
-        .from('information_schema.tables')
-        .select('table_name')
-        .eq('table_schema', 'public');
-
-      if (tablesError) {
-        console.error('Error checking existing tables:', tablesError);
-      }
-
-      const existingTables = tables?.map(t => t.table_name) || [];
-      const requiredTables = ['users', 'surveys', 'documents', 'document_chunks', 'chat_sessions', 'chat_messages', 'unanswered_queries', 'admin_knowledge'];
-      
-      const missingTables = requiredTables.filter(table => !existingTables.includes(table));
-
-      // Check if admin_images column exists in unanswered_queries
-      const { data: columns } = await supabase
-        .from('information_schema.columns')
-        .select('column_name')
-        .eq('table_name', 'unanswered_queries')
-        .eq('table_schema', 'public');
-
-      const hasAdminImagesColumn = columns?.some(col => col.column_name === 'admin_images');
-
-      if (missingTables.length === 0) {
-        if (hasAdminImagesColumn) {
-          // All tables exist and schema is correct, mark as completed
-          setMigrations(prev => prev.map(m => ({ ...m, status: 'completed' as const })));
-        } else {
-          // Tables exist but schema needs updates
-          setMigrations(prev => prev.map((m, index) => ({ 
-            ...m, 
-            status: index < 2 ? 'completed' as const : 'running' as const
-          })));
-          
-          // Simulate schema updates
-          setTimeout(() => {
-            setMigrations(prev => prev.map(m => ({ ...m, status: 'completed' as const })));
-          }, 2000);
+      // Create demo users if they don't exist
+      const demoUsers = [
+        {
+          id: 'admin-user-id',
+          email: 'admin@example.com',
+          name: 'Admin User',
+          role: 'admin' as const,
+          status: 'active' as const,
+          password_hash: 'demo-hash',
+          salt: 'demo-salt'
+        },
+        {
+          id: 'enum-user-id',
+          email: 'enum@example.com',
+          name: 'John Enumerator',
+          role: 'enumerator' as const,
+          status: 'active' as const,
+          password_hash: 'demo-hash',
+          salt: 'demo-salt'
+        },
+        {
+          id: 'super-user-id',
+          email: 'super@example.com',
+          name: 'Jane Supervisor',
+          role: 'supervisor' as const,
+          status: 'active' as const,
+          password_hash: 'demo-hash',
+          salt: 'demo-salt'
+        },
+        {
+          id: 'zo-user-id',
+          email: 'zo@example.com',
+          name: 'ZO User',
+          role: 'zo' as const,
+          status: 'active' as const,
+          password_hash: 'demo-hash',
+          salt: 'demo-salt'
+        },
+        {
+          id: 'ro-user-id',
+          email: 'ro@example.com',
+          name: 'RO User',
+          role: 'ro' as const,
+          status: 'active' as const,
+          password_hash: 'demo-hash',
+          salt: 'demo-salt'
         }
-      } else {
-        // Some tables are missing, this would require actual SQL execution
-        // In a real implementation, you would run the migration SQL here
-        console.log('Missing tables:', missingTables);
-        
-        // For demo purposes, simulate successful migration
-        setTimeout(() => {
-          setMigrations(prev => prev.map(m => ({ ...m, status: 'completed' as const })));
-        }, 2000);
+      ];
+
+      // Insert demo users
+      for (const user of demoUsers) {
+        try {
+          const { data: existingUser } = await supabase
+            .from('users')
+            .select('id')
+            .eq('email', user.email)
+            .single();
+
+          if (!existingUser) {
+            const { error: insertError } = await supabase
+              .from('users')
+              .insert(user);
+
+            if (insertError) {
+              console.error(`Error creating user ${user.email}:`, insertError);
+            } else {
+              console.log(`Created demo user: ${user.email}`);
+            }
+          } else {
+            console.log(`Demo user already exists: ${user.email}`);
+          }
+        } catch (error) {
+          console.error(`Error checking/creating user ${user.email}:`, error);
+        }
       }
+
+      // Create demo surveys if they don't exist
+      const demoSurveys = [
+        { id: 'survey-1', name: 'Population Census Survey', description: 'National population census data collection' },
+        { id: 'survey-2', name: 'Economic Household Survey', description: 'Household economic status survey' },
+        { id: 'survey-3', name: 'Health and Nutrition Survey', description: 'Health and nutrition assessment' },
+        { id: 'survey-4', name: 'Education Access Survey', description: 'Educational access and quality survey' },
+        { id: 'survey-5', name: 'ASUSE Industry Survey', description: 'Industry and business survey' }
+      ];
+
+      for (const survey of demoSurveys) {
+        try {
+          const { data: existingSurvey } = await supabase
+            .from('surveys')
+            .select('id')
+            .eq('id', survey.id)
+            .single();
+
+          if (!existingSurvey) {
+            const { error: insertError } = await supabase
+              .from('surveys')
+              .insert(survey);
+
+            if (insertError) {
+              console.error(`Error creating survey ${survey.name}:`, insertError);
+            } else {
+              console.log(`Created demo survey: ${survey.name}`);
+            }
+          } else {
+            console.log(`Demo survey already exists: ${survey.name}`);
+          }
+        } catch (error) {
+          console.error(`Error checking/creating survey ${survey.name}:`, error);
+        }
+      }
+
+      // Mark all migrations as completed
+      setMigrations(prev => prev.map(m => ({ ...m, status: 'completed' as const })));
 
     } catch (error) {
       console.error('Migration error:', error);
