@@ -153,6 +153,8 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const createSession = async (surveyId: string, category?: string) => {
     if (!user) return;
     
+    console.log('Creating session for user:', user.id, 'with email:', user.email);
+    
     const newSession: ChatSession = {
       id: crypto.randomUUID(),
       surveyId,
@@ -169,7 +171,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       category: category || null
     };
     
-    console.log('Creating chat session with user ID:', user.id, 'and data:', sessionData);
+    console.log('Creating chat session with sessionData:', sessionData);
     
     try {
       const createdSession = await databaseService.createChatSession(sessionData);
@@ -177,9 +179,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
         // Update the session with the database ID
         newSession.id = createdSession.id;
         setCurrentSession({ ...newSession, id: createdSession.id });
+        console.log('Chat session created successfully with ID:', createdSession.id);
+      } else {
+        console.error('Failed to create chat session - no session returned');
       }
     } catch (error) {
       console.error('Failed to save chat session to database:', error);
+      console.error('User ID that failed:', user.id);
+      console.error('Session data that failed:', sessionData);
     }
     
     // Add to user's sessions

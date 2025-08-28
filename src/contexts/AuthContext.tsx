@@ -132,26 +132,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const foundUser = mockUsers.find(u => u.email === email);
     if (foundUser && password === 'password123') {
-      // Check if the mock user already exists in the database
+      // First check if user exists in database by email
       try {
-        const existingUser = await databaseService.getUser(foundUser.id);
+        let existingUser = await databaseService.getUserByEmail(foundUser.email);
         if (!existingUser) {
-          // User doesn't exist, create it
-          await databaseService.createUser({
+          // User doesn't exist, create it with the mock user's ID
+          existingUser = await databaseService.createUser({
             id: foundUser.id,
             email: foundUser.email,
             name: foundUser.name,
             role: foundUser.role as any
           });
         }
+        
+        // Use the database user's actual ID (which should match the mock ID)
+        const userData = {
+          id: existingUser.id,
+          name: existingUser.name,
+          email: existingUser.email,
+          role: existingUser.role
+        };
+        
+        setUser(userData);
+        localStorage.setItem('user', JSON.stringify(userData));
+        console.log('Mock user logged in with database ID:', existingUser.id);
+        return true;
       } catch (error) {
-        // Handle any database errors
-        console.log('Error checking/creating mock user in database:', error);
+        console.error('Error checking/creating mock user in database:', error);
+        // Fallback to mock user if database operations fail
+        setUser(foundUser);
+        localStorage.setItem('user', JSON.stringify(foundUser));
+        return true;
       }
-      
-      setUser(foundUser);
-      localStorage.setItem('user', JSON.stringify(foundUser));
-      return true;
     }
     return false;
   };
