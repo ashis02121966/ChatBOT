@@ -100,7 +100,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
       const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
       const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
       
-      if (supabaseUrl && supabaseKey && supabaseUrl !== 'your_supabase_project_url' && supabaseKey !== 'your_supabase_anon_key') {
+      // Only attempt Supabase auth if properly configured AND not using demo environment
+      const isSupabaseConfigured = supabaseUrl && 
+                                   supabaseKey && 
+                                   supabaseUrl !== 'your_supabase_project_url' && 
+                                   supabaseKey !== 'your_supabase_anon_key' &&
+                                   !supabaseUrl.includes('buhrurxzleuorxzjsuwt.supabase.co');
+      
+      if (isSupabaseConfigured) {
         try {
           console.log('🔐 Attempting Supabase authentication for:', email);
           const { data, error } = await supabase.auth.signInWithPassword({
