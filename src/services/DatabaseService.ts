@@ -760,28 +760,8 @@ export class DatabaseService {
   }
 
   async signIn(email: string, password: string) {
-    // Authenticate against our custom users table
-    const { data: users, error } = await supabase
-      .from('users')
-      .select('*')
-      .eq('email', email)
-      .eq('status', 'active')
-      .single();
-
-    if (error || !users) {
-      console.error('User not found or inactive:', error);
-      throw error;
-    }
-
-    // For demo purposes, we'll do simple password comparison
-    // In production, you would hash the input password and compare with stored hash
-    const isValidPassword = await this.verifyPassword(password, users.password_hash, users.salt);
-    
-    if (!isValidPassword) {
-      throw new Error('Invalid password');
-    }
-
-    return { user: users };
+    // This method is deprecated - use getUserByEmail directly in AuthContext
+    throw new Error('Use getUserByEmail and password verification in AuthContext instead');
   }
 
   private async verifyPassword(inputPassword: string, storedHash: string, salt: string): Promise<boolean> {

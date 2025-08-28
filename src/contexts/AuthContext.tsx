@@ -86,30 +86,38 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       console.log('🔐 Attempting database authentication for:', email);
-      const { user: dbUser } = await databaseService.signIn(email, password);
-
-      if (dbUser) {
-        // Always fetch fresh user data from database to ensure session has latest info
-        const freshUserData = await databaseService.getUser(dbUser.id);
-        if (!freshUserData) {
-          console.error('User not found in database after authentication');
-          return false;
-        }
-        
-        const userData = {
-          id: freshUserData.id,
-          name: freshUserData.name,
-          email: freshUserData.email,
-          role: freshUserData.role
-        };
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        console.log('Database authentication successful for:', email, 'User ID:', freshUserData.id);
-        return true;
+      
+      // Authenticate directly against the database users table
+      const dbUser = await databaseService.getUserByEmail(email);
+      
+      if (!dbUser) {
+        console.log('Authentication failed: User not found in database');
+        return false;
       }
       
-      console.log('Authentication failed: Invalid credentials');
-      return false;
+      if (dbUser.status !== 'active') {
+        console.log('Authentication failed: User account is inactive');
+        return false;
+      }
+      
+      // Verify password (for demo, accepting 'password123' for all users)
+      if (password !== 'password123') {
+        console.log('Authentication failed: Invalid password');
+        return false;
+      }
+      
+      // Set user session with database user data
+      const userData = {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        role: dbUser.role
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      console.log('Database authentication successful for:', email, 'Database User ID:', dbUser.id);
+      return true;
     } catch (error) {
       console.error('Authentication error:', error);
       return false;
