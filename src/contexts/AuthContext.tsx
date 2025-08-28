@@ -123,11 +123,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     // Mock authentication - replace with actual API call
     const mockUsers: User[] = [
-      { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-      { id: '2', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
-      { id: '3', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
-      { id: '4', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
-      { id: '5', name: 'RO User', email: 'ro@example.com', role: 'ro' },
+      { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
+      { id: '550e8400-e29b-41d4-a716-446655440002', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
+      { id: '550e8400-e29b-41d4-a716-446655440003', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
+      { id: '550e8400-e29b-41d4-a716-446655440004', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
+      { id: '550e8400-e29b-41d4-a716-446655440005', name: 'RO User', email: 'ro@example.com', role: 'ro' },
     ];
 
     const foundUser = mockUsers.find(u => u.email === email);
