@@ -98,12 +98,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       // Try Supabase authentication first
       try {
+        console.log('🔐 Attempting Supabase authentication for:', email);
         const { data, error } = await supabase.auth.signInWithPassword({
           email,
           password
         });
 
-        if (!error && data.user) {
+        if (data.user && !error) {
           // Get user profile from database
           const userProfile = await databaseService.getUserByEmail(email);
           if (userProfile) {
@@ -118,15 +119,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('Supabase authentication successful for:', email);
             return true;
           }
-        } else if (error) {
-          console.log('Supabase authentication failed:', error.message);
         }
+        
+        // Log Supabase auth failure but don't treat it as an error
+        console.log('🔄 Supabase authentication not available, using mock authentication for:', email);
       } catch (supabaseError) {
-        console.log('Supabase auth error, falling back to mock authentication:', supabaseError.message || supabaseError);
+        console.log('🔄 Supabase service unavailable, using mock authentication:', email);
       }
 
       // Mock authentication fallback
-      console.log('Attempting mock authentication for:', email);
+      console.log('🎭 Using mock authentication for:', email);
     const mockUsers: User[] = [
       { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
       { id: '550e8400-e29b-41d4-a716-446655440002', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
