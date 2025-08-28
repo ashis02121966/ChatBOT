@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
 import { Routes, Route, Link, useLocation } from 'react-router-dom';
-import { FileUp, MessageSquare, BarChart3, Settings, Users } from 'lucide-react';
+import { FileUp, MessageSquare, BarChart3, Settings, Users, Database } from 'lucide-react';
 import FileManagement from './FileManagement';
 import QueryManagement from './QueryManagement';
 import Analytics from './Analytics';
 import UserManagement from './UserManagement';
+import DatabaseManagement from './DatabaseManagement';
 
 export default function AdminDashboard() {
   const location = useLocation();
@@ -14,6 +15,7 @@ export default function AdminDashboard() {
     { path: '/admin/queries', icon: MessageSquare, label: 'Unanswered Queries' },
     { path: '/admin/analytics', icon: BarChart3, label: 'Analytics' },
     { path: '/admin/users', icon: Users, label: 'User Management' },
+    { path: '/admin/database', icon: Database, label: 'Database' },
   ];
 
   return (
@@ -53,6 +55,7 @@ export default function AdminDashboard() {
             <Route path="/queries" element={<QueryManagement />} />
             <Route path="/analytics" element={<Analytics />} />
             <Route path="/users" element={<UserManagement />} />
+            <Route path="/database" element={<DatabaseManagement />} />
             <Route path="/" element={<FileManagement />} />
           </Routes>
         </div>
