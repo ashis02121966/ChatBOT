@@ -432,6 +432,62 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
   };
 
+  // Helper function to add unanswered queries
+  const addUnansweredQuery = async (content: string, surveyId: string, userId: string) => {
+    const unansweredQuery: UnansweredQuery = {
+      id: crypto.randomUUID(),
+      content,
+      surveyId: surveyId,
+      timestamp: new Date(),
+      userId: userId,
+    };
+    
+    console.log('🔄 Adding unanswered query to database:', {
+      content: content,
+      surveyId: surveyId,
+      userId: userId
+    });
+    
+    // Save to database first
+    try {
+      const dbQueryData = {
+        id: unansweredQuery.id,
+        content: content,
+        survey_id: surveyId,
+        user_id: userId,
+        status: 'pending' as const,
+        priority: 1,
+        category: currentSession?.category || null,
+        tags: [],
+        context: {}
+      };
+      
+      console.log('📝 Inserting unanswered query with data:', dbQueryData);
+      
+      const dbQuery = await databaseService.createUnansweredQuery(dbQueryData);
+      
+      if (dbQuery) {
+        console.log('✅ Unanswered query saved to database successfully:', dbQuery.id);
+        // Update local query with database ID
+        unansweredQuery.id = dbQuery.id;
+      } else {
+        console.error('❌ Database returned null for unanswered query');
+      }
+    } catch (error) {
+      console.error('❌ Failed to save unanswered query to database:', error);
+      console.error('Error details:', error);
+    }
+    
+    // Always add to local state (for immediate UI update)
+    setUnansweredQueries(prev => {
+      const updated = [...prev, unansweredQuery];
+      console.log(`📋 Updated local unanswered queries count: ${updated.length}`);
+      return updated;
+    });
+    
+    console.log(`✅ Added unanswered query: "${content}" from user ${userId}`);
+  };
+
   const provideFeedback = (messageId: string, isCorrect: boolean) => {
     if (!currentSession) return;
 
@@ -445,16 +501,22 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
 
     // If feedback is negative and we've reached max attempts, add to unanswered queries
-    if (!isCorrect && (message.alternativeAttempts || 0) >= 3 && message.originalQuery) {
-      const unansweredQuery: UnansweredQuery = {
-        id: crypto.randomUUID(),
-        content: message.originalQuery,
-        surveyId: currentSession.surveyId,
-        timestamp: new Date(),
-        userId: user?.id || 'unknown',
-      };
-      setUnansweredQueries(prev => [...prev, unansweredQuery]);
-      console.log(`Added unanswered query after max attempts: "${message.originalQuery}" from user ${user?.id || 'unknown'}`);
+    if (!isCorrect && (message.alternativeAttempts || 0) >= 3) {
+      // Find the original user query
+      const messageIndex = currentSession.messages.findIndex(msg => msg.id === messageId);
+      let originalQuery = message.originalQuery;
+      
+      if (!originalQuery && messageIndex > 0) {
+        const previousMessage = currentSession.messages[messageIndex - 1];
+        if (previousMessage.sender === 'user') {
+          originalQuery = previousMessage.content;
+        }
+      }
+      
+      if (originalQuery && user?.id) {
+        console.log('🚨 Max attempts reached, sending to admin:', originalQuery);
+        addUnansweredQuery(originalQuery, currentSession.surveyId, user.id);
+      }
     }
 
     // Update the message with feedback
@@ -513,7 +575,53 @@ export function ChatProvider({ children }: ChatProviderProps) {
     console.log(`🖼️ Admin provided ${images.length} images with the answer`);
 
     // Add the admin answer to the knowledge base
-    updateAdminKnowledgeDocument(query.content, answer, query.surveyId, images);
+    console.log('🧠 Adding admin answer to knowledge base...');
+    
+    try {
+      // Save to admin knowledge table
+      const knowledgeData = {
+        id: crypto.randomUUID(),
+        original_question: query.content,
+        admin_answer: answer.replace(/<[^>]*>/g, ''), // Strip HTML for plain text
+        admin_answer_rich: answer, // Keep rich HTML content
+        survey_id: query.surveyId || null,
+        images: images.length > 0 ? images : null,
+        created_by: user?.id || null,
+        feedback_score: 0,
+        times_used: 0
+      };
+      
+      console.log('📝 Inserting admin knowledge with data:', knowledgeData);
+      
+      databaseService.createAdminKnowledge(knowledgeData).then(result => {
+        if (result) {
+          console.log('✅ Admin knowledge saved to database:', result.id);
+        } else {
+          console.error('❌ Failed to save admin knowledge - no result returned');
+        }
+      }).catch(error => {
+        console.error('❌ Failed to save admin knowledge to database:', error);
+      });
+      
+      // Also update document context for SLM
+      updateAdminKnowledgeDocument(query.content, answer, query.surveyId, images);
+      
+    } catch (error) {
+      console.error('❌ Error processing admin answer:', error);
+    }
+
+    // Update query status in database
+    try {
+      databaseService.answerQuery(queryId, answer, answer, images, user?.id).then(result => {
+        if (result) {
+          console.log('✅ Query marked as answered in database:', result.id);
+        }
+      }).catch(error => {
+        console.error('❌ Failed to update query status in database:', error);
+      });
+    } catch (error) {
+      console.error('❌ Error updating query status:', error);
+    }
 
     // Remove from unanswered queries
     setUnansweredQueries(prev => prev.filter(q => q.id !== queryId));
@@ -867,16 +975,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
       console.error('Error generating alternative answer:', error);
       
       // If we can't generate an alternative, add to unanswered queries
-      const unansweredQuery: UnansweredQuery = {
-        id: crypto.randomUUID(),
-        content: originalQuery,
-        surveyId: currentSession.surveyId,
-        timestamp: new Date(),
-        userId: user.id,
-      };
-      setUnansweredQueries(prev => [...prev, unansweredQuery]);
-      console.log(`Added unanswered query from alternative generation failure: "${originalQuery}" from user ${user.id}`);
-      console.log(`Added unanswered query from error: "${originalQuery}" from user ${user.id}`);
+      if (user?.id) {
+        console.log('🚨 Alternative generation failed, sending to admin:', originalQuery);
+        addUnansweredQuery(originalQuery, currentSession.surveyId, user.id);
+      }
     }
   };
 

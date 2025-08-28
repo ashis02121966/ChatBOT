@@ -496,7 +496,7 @@ export class DatabaseService {
       context: queryData.context || {}
     };
     
-    console.log('Inserting unanswered query:', cleanQueryData);
+    console.log('🔄 DatabaseService: Inserting unanswered query:', cleanQueryData);
     
     try {
       const { data, error } = await supabase
@@ -506,14 +506,17 @@ export class DatabaseService {
         .single();
 
       if (error) {
-        console.error('Error creating unanswered query:', error);
+        console.error('❌ DatabaseService: Error creating unanswered query:', error);
+        console.error('❌ Error details:', error.details);
+        console.error('❌ Error hint:', error.hint);
+        console.error('❌ Error message:', error.message);
         throw error;
       }
 
-      console.log('Unanswered query created successfully:', data);
+      console.log('✅ DatabaseService: Unanswered query created successfully:', data);
       return data;
     } catch (error) {
-      console.error('Database error creating unanswered query:', error);
+      console.error('❌ DatabaseService: Database error creating unanswered query:', error);
       throw error;
     }
   }
@@ -570,23 +573,42 @@ export class DatabaseService {
 
   // Admin Knowledge CRUD operations
   async createAdminKnowledge(knowledgeData: Tables['admin_knowledge']['Insert']): Promise<AdminKnowledge | null> {
-    // Ensure we have a valid UUID for the knowledge ID
-    if (knowledgeData.id && typeof knowledgeData.id === 'string' && !knowledgeData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      knowledgeData.id = crypto.randomUUID();
-    }
+    // Clean the knowledge data and ensure proper format
+    const cleanKnowledgeData = {
+      id: this.validateAndGenerateUUID(knowledgeData.id),
+      original_question: knowledgeData.original_question,
+      admin_answer: knowledgeData.admin_answer,
+      admin_answer_rich: knowledgeData.admin_answer_rich || null,
+      survey_id: knowledgeData.survey_id || null,
+      images: knowledgeData.images || null,
+      created_by: knowledgeData.created_by || null,
+      feedback_score: knowledgeData.feedback_score || 0,
+      times_used: knowledgeData.times_used || 0
+    };
     
-    const { data, error } = await supabase
-      .from('admin_knowledge')
-      .insert(knowledgeData)
-      .select()
-      .single();
+    console.log('🔄 DatabaseService: Inserting admin knowledge:', cleanKnowledgeData);
+    
+    try {
+      const { data, error } = await supabase
+        .from('admin_knowledge')
+        .insert(cleanKnowledgeData)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error creating admin knowledge:', error);
+      if (error) {
+        console.error('❌ DatabaseService: Error creating admin knowledge:', error);
+        console.error('❌ Error details:', error.details);
+        console.error('❌ Error hint:', error.hint);
+        console.error('❌ Error message:', error.message);
+        throw error;
+      }
+
+      console.log('✅ DatabaseService: Admin knowledge created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ DatabaseService: Database error creating admin knowledge:', error);
       throw error;
     }
-
-    return data;
   }
 
   async getAdminKnowledge(surveyId?: string): Promise<AdminKnowledge[]> {
