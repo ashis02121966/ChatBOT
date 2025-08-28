@@ -154,7 +154,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (!user) return;
     
     const newSession: ChatSession = {
-      id: crypto.randomUUID(),
+      id: `session-${crypto.randomUUID()}`,
       surveyId,
       category,
       messages: [],
@@ -163,11 +163,16 @@ export function ChatProvider({ children }: ChatProviderProps) {
     setCurrentSession(newSession);
     
     // Save to database
-    databaseService.createChatSession({
+    const sessionData = {
+      id: newSession.id,
       user_id: user.id,
       survey_id: surveyId,
-      category: category
-    }).catch(error => {
+      category: category || null
+    };
+    
+    console.log('Creating chat session with data:', sessionData);
+    
+    databaseService.createChatSession(sessionData).catch(error => {
       console.error('Failed to save chat session to database:', error);
     });
     
@@ -192,19 +197,24 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
     // Add user message
     const userMessage: ChatMessage = {
-      id: crypto.randomUUID(),
+      id: `msg-${crypto.randomUUID()}`,
       content,
       sender: 'user',
       timestamp: new Date(),
     };
 
-    // Save user message to database
-    if (currentSession) {
-      databaseService.createChatMessage({
+    // Save user message to database with proper data structure
+    if (currentSession && currentSession.id) {
+      const userMessageData = {
+        id: userMessage.id,
         session_id: currentSession.id,
         content: content,
         sender: 'user'
-      }).catch(error => {
+      };
+      
+      console.log('Creating user message with data:', userMessageData);
+      
+      databaseService.createChatMessage(userMessageData).catch(error => {
         console.error('Failed to save user message to database:', error);
       });
     }
@@ -331,7 +341,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Create bot message
       const botMessage: ChatMessage = {
-        id: crypto.randomUUID(),
+        id: `msg-${crypto.randomUUID()}`,
         content: '', // Always use richContent
         richContent: botResponse, // Always display as rich content
         sender: responseType,
@@ -339,15 +349,20 @@ export function ChatProvider({ children }: ChatProviderProps) {
         images: responseImages.length > 0 ? responseImages : undefined,
       };
 
-      // Save bot message to database
-      if (currentSession) {
-        databaseService.createChatMessage({
+      // Save bot message to database with proper data structure
+      if (currentSession && currentSession.id) {
+        const botMessageData = {
+          id: botMessage.id,
           session_id: currentSession.id,
-          content: botMessage.content,
+          content: botMessage.content || botResponse.replace(/<[^>]*>/g, ''), // Strip HTML for content field
           rich_content: botMessage.richContent,
           sender: responseType,
-          images: responseImages
-        }).catch(error => {
+          images: responseImages.length > 0 ? responseImages : null
+        };
+        
+        console.log('Creating bot message with data:', botMessageData);
+        
+        databaseService.createChatMessage(botMessageData).catch(error => {
           console.error('Failed to save bot message to database:', error);
         });
       }

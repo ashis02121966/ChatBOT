@@ -336,23 +336,38 @@ export class DatabaseService {
 
   // Chat Session CRUD operations
   async createChatSession(sessionData: Tables['chat_sessions']['Insert']): Promise<ChatSession | null> {
-    // Ensure we have a valid UUID for the session ID
-    if (sessionData.id && typeof sessionData.id === 'string' && !sessionData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      sessionData.id = crypto.randomUUID();
-    }
+    // Clean the session data and ensure proper format
+    const cleanSessionData = {
+      ...sessionData,
+      id: sessionData.id || crypto.randomUUID(),
+      user_id: sessionData.user_id,
+      survey_id: sessionData.survey_id,
+      category: sessionData.category || null,
+      message_count: 0,
+      total_feedback_positive: 0,
+      total_feedback_negative: 0
+    };
     
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .insert(sessionData)
-      .select()
-      .single();
+    console.log('Inserting chat session:', cleanSessionData);
+    
+    try {
+      const { data, error } = await supabase
+        .from('chat_sessions')
+        .insert(cleanSessionData)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error creating chat session:', error);
+      if (error) {
+        console.error('Error creating chat session:', error);
+        throw error;
+      }
+
+      console.log('Chat session created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Database error creating chat session:', error);
       throw error;
     }
-
-    return data;
   }
 
   async getChatSession(id: string): Promise<ChatSession | null> {
@@ -403,23 +418,40 @@ export class DatabaseService {
 
   // Chat Message CRUD operations
   async createChatMessage(messageData: Tables['chat_messages']['Insert']): Promise<ChatMessage | null> {
-    // Ensure we have a valid UUID for the message ID
-    if (messageData.id && typeof messageData.id === 'string' && !messageData.id.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i)) {
-      messageData.id = crypto.randomUUID();
-    }
+    // Clean the message data and ensure proper format
+    const cleanMessageData = {
+      ...messageData,
+      id: messageData.id || crypto.randomUUID(),
+      session_id: messageData.session_id,
+      content: messageData.content || '',
+      rich_content: messageData.rich_content || null,
+      sender: messageData.sender,
+      images: messageData.images || null,
+      feedback_provided: false,
+      feedback_type: null,
+      alternative_attempts: 0
+    };
     
-    const { data, error } = await supabase
-      .from('chat_messages')
-      .insert(messageData)
-      .select()
-      .single();
+    console.log('Inserting chat message:', cleanMessageData);
+    
+    try {
+      const { data, error } = await supabase
+        .from('chat_messages')
+        .insert(cleanMessageData)
+        .select()
+        .single();
 
-    if (error) {
-      console.error('Error creating chat message:', error);
+      if (error) {
+        console.error('Error creating chat message:', error);
+        throw error;
+      }
+
+      console.log('Chat message created successfully:', data);
+      return data;
+    } catch (error) {
+      console.error('Database error creating chat message:', error);
       throw error;
     }
-
-    return data;
   }
 
   async getChatMessages(sessionId: string): Promise<ChatMessage[]> {
