@@ -561,9 +561,9 @@ export class DatabaseService {
   ): Promise<UnansweredQuery | null> {
     const updates: Tables['unanswered_queries']['Update'] = {
       status: 'answered',
-      admin_response: adminResponse,
-      admin_response_rich: adminResponseRich,
-      admin_images: adminImages || [],
+      answer_content: adminResponse,
+      answer_rich_content: adminResponseRich,
+      answer_images: adminImages || [],
       answered_by: answeredBy,
       answered_at: new Date().toISOString()
     };
