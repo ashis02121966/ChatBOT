@@ -510,9 +510,13 @@ async function initializeServer() {
         // Clean up uploaded file on error
         if (req.file && req.file.path) {
 
-  } catch (error) {
+          } catch (error) {
     console.error('Failed to initialize server:', error);
     process.exit(1);
+  }
+      }
+    }
+    )
   }
 }
 
