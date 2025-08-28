@@ -154,7 +154,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (!user) return;
     
     const newSession: ChatSession = {
-      id: `session-${crypto.randomUUID()}`,
+      id: crypto.randomUUID(),
       surveyId,
       category,
       messages: [],
@@ -197,7 +197,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
     // Add user message
     const userMessage: ChatMessage = {
-      id: `msg-${crypto.randomUUID()}`,
+      id: crypto.randomUUID(),
       content,
       sender: 'user',
       timestamp: new Date(),
@@ -341,7 +341,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Create bot message
       const botMessage: ChatMessage = {
-        id: `msg-${crypto.randomUUID()}`,
+        id: crypto.randomUUID(),
         content: '', // Always use richContent
         richContent: botResponse, // Always display as rich content
         sender: responseType,
