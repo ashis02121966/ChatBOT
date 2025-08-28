@@ -497,7 +497,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     console.log(`✅ Added unanswered query: "${content}" from user ${userId}`);
   };
 
-  const provideFeedback = (messageId: string, isCorrect: boolean) => {
+  const provideFeedback = async (messageId: string, isCorrect: boolean) => {
     if (!currentSession) return;
 
     const message = currentSession.messages.find(msg => msg.id === messageId);
