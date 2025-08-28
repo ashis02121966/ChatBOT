@@ -164,13 +164,12 @@ export function ChatProvider({ children }: ChatProviderProps) {
     
     // Save to database
     const sessionData = {
-      id: newSession.id,
       user_id: user.id,
       survey_id: surveyId,
       category: category || null
     };
     
-    console.log('Creating chat session with data:', sessionData);
+    console.log('Creating chat session with user ID:', user.id, 'and data:', sessionData);
     
     databaseService.createChatSession(sessionData).catch(error => {
       console.error('Failed to save chat session to database:', error);

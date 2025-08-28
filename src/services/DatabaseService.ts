@@ -338,14 +338,13 @@ export class DatabaseService {
   async createChatSession(sessionData: Tables['chat_sessions']['Insert']): Promise<ChatSession | null> {
     // Clean the session data and ensure proper format
     const cleanSessionData = {
-      ...sessionData,
       id: this.validateAndGenerateUUID(sessionData.id),
       user_id: sessionData.user_id,
       survey_id: sessionData.survey_id,
       category: sessionData.category || null
     };
     
-    console.log('Inserting chat session:', cleanSessionData);
+    console.log('Inserting chat session with user_id:', cleanSessionData.user_id, 'full data:', cleanSessionData);
     
     try {
       const { data, error } = await supabase
