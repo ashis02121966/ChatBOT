@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { supabase } from '../lib/supabase';
+import { databaseService } from '../services/DatabaseService';
 
 export interface User {
   id: string;
@@ -32,16 +34,93 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Check for existing Supabase session
   useEffect(() => {
-    // Check for existing session
-    const savedUser = localStorage.getItem('user');
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
-    setLoading(false);
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (session?.user) {
+          // Get user profile from database
+          const userProfile = await databaseService.getUserByEmail(session.user.email!);
+          if (userProfile) {
+            setUser({
+              id: userProfile.id,
+              name: userProfile.name,
+              email: userProfile.email,
+              role: userProfile.role
+            });
+          }
+        } else {
+          // Fallback to localStorage for demo users
+          const savedUser = localStorage.getItem('user');
+          if (savedUser) {
+            setUser(JSON.parse(savedUser));
+          }
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        // Fallback to localStorage
+        const savedUser = localStorage.getItem('user');
+        if (savedUser) {
+          setUser(JSON.parse(savedUser));
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkSession();
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session?.user) {
+        const userProfile = await databaseService.getUserByEmail(session.user.email!);
+        if (userProfile) {
+          setUser({
+            id: userProfile.id,
+            name: userProfile.name,
+            email: userProfile.email,
+            role: userProfile.role
+          });
+        }
+      } else {
+        setUser(null);
+      }
+    });
+
+    return () => {
+      subscription.unsubscribe();
+    };
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      // Try Supabase authentication first
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (data.user && !error) {
+        // Get user profile from database
+        const userProfile = await databaseService.getUserByEmail(email);
+        if (userProfile) {
+          const userData = {
+            id: userProfile.id,
+            name: userProfile.name,
+            email: userProfile.email,
+            role: userProfile.role
+          };
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          return true;
+        }
+      }
+    } catch (supabaseError) {
+      console.log('Supabase auth failed, trying demo credentials:', supabaseError);
+    }
+
     // Mock authentication - replace with actual API call
     const mockUsers: User[] = [
       { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
@@ -61,6 +140,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    // Sign out from Supabase
+    supabase.auth.signOut();
+    
     setUser(null);
     localStorage.removeItem('user');
     // Clear only user-specific chat sessions, preserve global unanswered queries

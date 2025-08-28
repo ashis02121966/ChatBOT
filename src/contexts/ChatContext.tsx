@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useAuth } from './AuthContext';
 import { useDocuments } from './DocumentContext';
 import { SLMService } from '../services/SLMService';
+import { databaseService } from '../services/DatabaseService';
 
 // Helper function to convert plain text to HTML format
 function convertPlainTextToHTML(text: string): string {
@@ -161,6 +162,15 @@ export function ChatProvider({ children }: ChatProviderProps) {
     };
     setCurrentSession(newSession);
     
+    // Save to database
+    databaseService.createChatSession({
+      user_id: user.id,
+      survey_id: surveyId,
+      category: category
+    }).catch(error => {
+      console.error('Failed to save chat session to database:', error);
+    });
+    
     // Add to user's sessions
     setUserSessions(prev => ({
       ...prev,
@@ -187,6 +197,17 @@ export function ChatProvider({ children }: ChatProviderProps) {
       sender: 'user',
       timestamp: new Date(),
     };
+
+    // Save user message to database
+    if (currentSession) {
+      databaseService.createChatMessage({
+        session_id: currentSession.id,
+        content: content,
+        sender: 'user'
+      }).catch(error => {
+        console.error('Failed to save user message to database:', error);
+      });
+    }
 
     setCurrentSession(prev => prev ? {
       ...prev,
@@ -268,6 +289,16 @@ export function ChatProvider({ children }: ChatProviderProps) {
           timestamp: new Date(),
           userId: user.id,
         };
+        
+        // Save to database
+        databaseService.createUnansweredQuery({
+          content: content,
+          survey_id: currentSession.surveyId,
+          user_id: user.id
+        }).catch(error => {
+          console.error('Failed to save unanswered query to database:', error);
+        });
+        
         setUnansweredQueries(prev => [...prev, unansweredQuery]);
         console.log(`Added unanswered query to global list: "${content}" from user ${user.id}`);
       }
@@ -307,6 +338,19 @@ export function ChatProvider({ children }: ChatProviderProps) {
         timestamp: new Date(),
         images: responseImages.length > 0 ? responseImages : undefined,
       };
+
+      // Save bot message to database
+      if (currentSession) {
+        databaseService.createChatMessage({
+          session_id: currentSession.id,
+          content: botMessage.content,
+          rich_content: botMessage.richContent,
+          sender: responseType,
+          images: responseImages
+        }).catch(error => {
+          console.error('Failed to save bot message to database:', error);
+        });
+      }
 
       setCurrentSession(prev => prev ? {
         ...prev,

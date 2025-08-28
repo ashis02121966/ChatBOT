@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { DocumentService } from '../services/DocumentService';
+import { databaseService } from '../services/DatabaseService';
+import { useAuth } from './AuthContext';
 
 export interface DocumentChunk {
   id: string;
@@ -132,6 +134,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
   const [serverProcessedDocuments, setServerProcessedDocuments] = useState<ProcessedDocument[]>([]);
   const [documentService] = useState(() => new DocumentService());
+  const { user } = useAuth();
 
   // Load documents from localStorage on component mount
   useEffect(() => {
@@ -255,12 +258,55 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, [serverProcessedDocuments]);
 
   const processDocument = async (file: File, surveyId: string, category: string = 'General Questions') => {
+    if (!user) {
+      throw new Error('User must be logged in to process documents');
+    }
+
     // Hybrid approach: Client-side for SLM learning + Server-side for enhanced context
     console.log('Processing document with hybrid approach: client-side for SLM + server-side for enhanced context');
     
     // Always process client-side for SLM learning
     const clientDoc = await processDocumentClientSide(file, surveyId, category);
     
+    // Save to database
+    try {
+      await databaseService.createDocument({
+        file_name: clientDoc.fileName,
+        survey_id: clientDoc.surveyId,
+        category: clientDoc.category,
+        content: clientDoc.content,
+        file_type: clientDoc.metadata.fileType,
+        word_count: clientDoc.metadata.wordCount,
+        character_count: clientDoc.metadata.characterCount,
+        chunk_count: clientDoc.metadata.chunkCount,
+        image_count: clientDoc.metadata.imageCount,
+        processing_method: clientDoc.metadata.processingMethod,
+        user_id: user.id
+      });
+
+      // Save document chunks
+      const chunksData = clientDoc.chunks.map(chunk => ({
+        content: chunk.content,
+        section: chunk.metadata.section,
+        keywords: chunk.metadata.keywords,
+        entities: chunk.metadata.entities,
+        word_count: chunk.metadata.wordCount,
+        character_count: chunk.metadata.characterCount,
+        content_type: chunk.metadata.contentType,
+        importance: chunk.metadata.importance || 1.0,
+        is_admin_answer: chunk.metadata.isAdminAnswer || false,
+        original_question: chunk.metadata.originalQuestion,
+        admin_answer: chunk.metadata.adminAnswer,
+        admin_answer_rich: chunk.metadata.adminAnswerRich
+      }));
+
+      await databaseService.createDocumentChunks(chunksData);
+      console.log('Document saved to database successfully');
+    } catch (dbError) {
+      console.error('Failed to save document to database:', dbError);
+      // Continue with local storage as fallback
+    }
+
     // Also try server-side processing for enhanced context (non-blocking)
     try {
       // Check if server is available first
@@ -374,6 +420,11 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     dataUrl: string;
     type: string;
   }> = []) => {
+    if (!user) {
+      console.error('User must be logged in to update admin knowledge');
+      return;
+    }
+
     console.log(`📝 Updating admin knowledge with question: "${question}" (will be persisted to localStorage)`);
     console.log(`🖼️ Received ${images.length} images for admin answer`);
     console.log(`📄 Admin answer contains HTML: ${answer.includes('<')}`);
@@ -444,6 +495,10 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         };
         
         console.log(`📚 Updated existing admin knowledge document with new Q&A (will be saved to localStorage)`);
+        
+        // Save to database
+        saveAdminKnowledgeToDatabase(question, answer, surveyId, allImages);
+        
         return updatedDocuments;
       } else {
         // Create new admin knowledge document
@@ -468,11 +523,35 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         };
         
         console.log(`📚 Created new admin knowledge document (will be saved to localStorage)`);
+        
+        // Save to database
+        saveAdminKnowledgeToDatabase(question, answer, surveyId, allImages);
+        
         return [...prev, newAdminDoc];
       }
     });
     
     console.log(`✅ Admin knowledge updated and will be automatically persisted to localStorage`);
+  };
+
+  // Helper function to save admin knowledge to database
+  const saveAdminKnowledgeToDatabase = async (question: string, answer: string, surveyId: string, images: any[]) => {
+    try {
+      await databaseService.createAdminKnowledge({
+        original_question: question,
+        admin_answer: cleanHTMLForStorage(answer),
+        admin_answer_rich: answer,
+        survey_id: surveyId === 'general' ? null : surveyId,
+        images: images,
+        created_by: user?.id,
+        feedback_score: 0,
+        times_used: 0
+      });
+      console.log('Admin knowledge saved to database successfully');
+    } catch (dbError) {
+      console.error('Failed to save admin knowledge to database:', dbError);
+      // Continue with local storage as fallback
+    }
   };
 
   const updateChunkFeedback = (chunkId: string, feedbackType: 'correct' | 'incorrect') => {
