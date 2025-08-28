@@ -1,0 +1,9 @@
+@@ -45,7 +45,7 @@
+     'non-response-handling',
+     'How do I handle non-response in surveys?',
+     'Non-response occurs when selected sample units do not participate in the survey. This can be due to refusal, inability to contact, or other reasons.',
+-    '<p><strong>Non-response</strong> occurs when selected sample units do not participate in the survey.</p><h3>How to handle non-response:</h3><ol><li><strong>Follow up</strong> with non-respondents multiple times</li><li><strong>Use different contact methods</strong> (phone, email, in-person)</li><li><strong>Offer incentives</strong> if appropriate and allowed</li><li><strong>Document reasons</strong> for non-response</li><li><strong>Calculate and report</strong> response rates accurately</li></ol><p>High non-response rates can introduce bias into survey results, so it''s important to minimize them through proper survey design and fieldwork procedures.</p>',
++    '<p><strong>Non-response</strong> occurs when selected sample units do not participate in the survey.</p><h3>How to handle non-response:</h3><ol><li><strong>Follow up</strong> with non-respondents multiple times</li><li><strong>Use different contact methods</strong> (phone, email, in-person)</li><li><strong>Offer incentives</strong> if appropriate and allowed</li><li><strong>Document reasons</strong> for non-response</li><li><strong>Calculate and report</strong> response rates accurately</li></ol><p>High non-response rates can introduce bias into survey results, so it''''s important to minimize them through proper survey design and fieldwork procedures.</p>',
+     'general',
+     '[]'::jsonb,
+     auth.uid(),
