@@ -1250,7 +1250,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         fileName: `${file.name} - Preview`,
         description: `Document preview for ${file.name}`,
         dataUrl: dataUrl,
-        type: classifyDocumentType(file.name)
+        metadata: processedDoc.metadata,
+        uploaded_by: user?.id
       };
       
     } catch (error) {
