@@ -226,7 +226,7 @@ export default function FileManagement() {
   };
 
   // Get processed documents for the selected survey
-  const processedDocs = selectedSurvey ? getDocumentsBySurvey(selectedSurvey, selectedCategory) : [];
+  const processedDocs = selectedSurvey ? (getDocumentsBySurvey(selectedSurvey, selectedCategory) || []) : [];
   
   // Merge files and processed documents for display
   const allFiles = [
