@@ -102,17 +102,22 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Load global unanswered queries on component mount (independent of user)
   useEffect(() => {
     // Load global unanswered queries (shared across all users for admin access)
-    const savedQueries = localStorage.getItem('globalUnansweredQueries');
-    if (savedQueries) {
-      try {
-        const queries = JSON.parse(savedQueries);
-        setUnansweredQueries(queries);
-        console.log(`Loaded ${queries.length} global unanswered queries from localStorage`);
-      } catch (error) {
-        console.error('Error loading global queries:', error);
+    try {
+      const savedQueries = localStorage.getItem('globalUnansweredQueries');
+      if (savedQueries) {
+        try {
+          const queries = JSON.parse(savedQueries);
+          setUnansweredQueries(queries);
+          console.log(`Loaded ${queries.length} global unanswered queries from localStorage`);
+        } catch (error) {
+          console.error('Error loading global queries:', error);
+          setUnansweredQueries([]);
+        }
+      } else {
         setUnansweredQueries([]);
       }
-    } else {
+    } catch (error) {
+      console.warn('localStorage not available, using memory storage only');
       setUnansweredQueries([]);
     }
   }, []); // Empty dependency array - only run once on mount
@@ -121,14 +126,18 @@ export function ChatProvider({ children }: ChatProviderProps) {
   useEffect(() => {
     if (user) {
       // Load user's sessions or initialize empty
-      const savedSessions = localStorage.getItem(`chatSessions_${user.id}`);
-      if (savedSessions) {
-        try {
-          const sessions = JSON.parse(savedSessions);
-          setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
-        } catch (error) {
-          console.error('Error loading user sessions:', error);
+      try {
+        const savedSessions = localStorage.getItem(`chatSessions_${user.id}`);
+        if (savedSessions) {
+          try {
+            const sessions = JSON.parse(savedSessions);
+            setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
+          } catch (error) {
+            console.error('Error loading user sessions:', error);
+          }
         }
+      } catch (error) {
+        console.warn('localStorage not available for user sessions');
       }
       
       // Clear current session when switching users
@@ -142,14 +151,22 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Save user sessions to localStorage when they change
   useEffect(() => {
     if (user && userSessions[user.id]) {
-      localStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
+      try {
+        localStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
+      } catch (error) {
+        console.warn('localStorage not available for saving user sessions');
+      }
     }
   }, [userSessions, user?.id]);
 
   // Save global queries to localStorage when they change (independent of user)
   useEffect(() => {
-    localStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
-    console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
+    try {
+      localStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
+      console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
+    } catch (error) {
+      console.warn('localStorage not available for saving global queries');
+    }
   }, [unansweredQueries]); // Removed user?.id dependency
 
   const createSession = async (surveyId: string, category?: string) => {
@@ -1011,7 +1028,11 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   const clearUserSessions = () => {
     if (user) {
-      localStorage.removeItem(`chatSessions_${user.id}`);
+      try {
+        localStorage.removeItem(`chatSessions_${user.id}`);
+      } catch (error) {
+        console.warn('localStorage not available for clearing sessions');
+      }
       setUserSessions(prev => ({ ...prev, [user.id]: [] }));
       setCurrentSession(null);
       console.log(`Cleared user sessions for user ${user.id}, but kept global unanswered queries`);

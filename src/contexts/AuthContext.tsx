@@ -115,7 +115,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
       
       setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      try {
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (error) {
+        console.warn('localStorage not available, using session storage only');
+      }
       console.log('Database authentication successful for:', email, 'Database User ID:', dbUser.id);
       return true;
     } catch (error) {
@@ -126,15 +130,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const logout = () => {
     setUser(null);
-    localStorage.removeItem('user');
-    // Clear only user-specific chat sessions, preserve global unanswered queries
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('chatSessions_')) {
-        localStorage.removeItem(key);
-      }
-      // Note: We intentionally do NOT remove 'globalUnansweredQueries' here
-      // as they should persist across all user sessions for admin access
-    });
+    try {
+      localStorage.removeItem('user');
+      // Clear only user-specific chat sessions, preserve global unanswered queries
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('chatSessions_')) {
+          localStorage.removeItem(key);
+        }
+        // Note: We intentionally do NOT remove 'globalUnansweredQueries' here
+        // as they should persist across all user sessions for admin access
+      });
+    } catch (error) {
+      console.warn('localStorage not available during logout');
+    }
   };
 
   return (
