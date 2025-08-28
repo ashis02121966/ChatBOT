@@ -96,35 +96,41 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Try Supabase authentication first
-      try {
-        console.log('🔐 Attempting Supabase authentication for:', email);
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
+      // Check if we have valid Supabase configuration
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      if (supabaseUrl && supabaseKey && supabaseUrl !== 'your_supabase_project_url' && supabaseKey !== 'your_supabase_anon_key') {
+        try {
+          console.log('🔐 Attempting Supabase authentication for:', email);
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
 
-        if (data.user && !error) {
-          // Get user profile from database
-          const userProfile = await databaseService.getUserByEmail(email);
-          if (userProfile) {
-            const userData = {
-              id: userProfile.id,
-              name: userProfile.name,
-              email: userProfile.email,
-              role: userProfile.role
-            };
-            setUser(userData);
-            localStorage.setItem('user', JSON.stringify(userData));
-            console.log('Supabase authentication successful for:', email);
-            return true;
+          if (data.user && !error) {
+            // Get user profile from database
+            const userProfile = await databaseService.getUserByEmail(email);
+            if (userProfile) {
+              const userData = {
+                id: userProfile.id,
+                name: userProfile.name,
+                email: userProfile.email,
+                role: userProfile.role
+              };
+              setUser(userData);
+              localStorage.setItem('user', JSON.stringify(userData));
+              console.log('Supabase authentication successful for:', email);
+              return true;
+            }
           }
+          
+          console.log('🔄 Supabase authentication failed, using mock authentication for:', email);
+        } catch (supabaseError) {
+          console.log('🔄 Supabase service unavailable, using mock authentication:', email);
         }
-        
-        // Log Supabase auth failure but don't treat it as an error
-        console.log('🔄 Supabase authentication not available, using mock authentication for:', email);
-      } catch (supabaseError) {
-        console.log('🔄 Supabase service unavailable, using mock authentication:', email);
+      } else {
+        console.log('🔄 Supabase not configured, using mock authentication for:', email);
       }
 
       // Mock authentication fallback
