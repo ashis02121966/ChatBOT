@@ -342,10 +342,7 @@ export class DatabaseService {
       id: this.validateAndGenerateUUID(sessionData.id),
       user_id: sessionData.user_id,
       survey_id: sessionData.survey_id,
-      category: sessionData.category || null,
-      message_count: 0,
-      total_feedback_positive: 0,
-      total_feedback_negative: 0
+      category: sessionData.category || null
     };
     
     console.log('Inserting chat session:', cleanSessionData);
