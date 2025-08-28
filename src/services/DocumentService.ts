@@ -2,26 +2,9 @@ export class DocumentService {
   private baseUrl: string;
 
   constructor() {
-    // Detect WebContainer environment and construct proper server URL
-    const currentOrigin = window.location.origin;
-    console.log('Current origin:', currentOrigin);
-    
-    // Check for WebContainer environment
-    if (currentOrigin.includes('webcontainer-api.io')) {
-      // WebContainer environment - construct server URL
-      // URL format: https://something--5173--something.webcontainer-api.io
-      // Server URL: https://something--3001--something.webcontainer-api.io
-      this.baseUrl = currentOrigin.replace(/--5173--/, '--3001--');
-      console.log(`WebContainer server URL: ${this.baseUrl}`);
-    } else if (import.meta.env.VITE_SERVER_URL) {
-      // Use environment variable if available
-      this.baseUrl = import.meta.env.VITE_SERVER_URL;
-      console.log(`Using environment server URL: ${this.baseUrl}`);
-    } else {
-      // Local development - use empty string for relative paths (handled by Vite proxy)
-      this.baseUrl = '';
-      console.log('Using local development mode with proxy');
-    }
+    // Use Vite proxy for all requests - this will proxy to the server
+    this.baseUrl = '';
+    console.log('Using Vite proxy for server requests');
   }
 
   async processDocument(file: File, surveyId: string): Promise<any> {
