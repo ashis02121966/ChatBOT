@@ -1,0 +1,70 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Add custom styles for rich text content */
+.prose img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 0.375rem;
+  border: 1px solid #e5e7eb;
+  margin: 0.5rem 0;
+}
+
+.prose p {
+  margin-bottom: 0.5rem;
+}
+
+.prose small {
+  display: block;
+  margin-top: 0.5rem;
+}
+
+.prose .image-container {
+  border: 1px solid #e5e7eb;
+  border-radius: 0.5rem;
+  overflow: hidden;
+  margin: 1rem 0;
+  background: white;
+}
+
+.prose .image-header {
+  background: #f9fafb;
+  padding: 0.75rem;
+  border-bottom: 1px solid #e5e7eb;
+  font-size: 0.75rem;
+}
+
+.prose .image-content {
+  padding: 0.5rem;
+}
+
+/* Rich text editor styles */
+[contenteditable] {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: embed !important;
+  writing-mode: horizontal-tb !important;
+}
+
+/* Force LTR for all text input in contenteditable */
+[contenteditable] * {
+  direction: ltr !important;
+  text-align: left !important;
+  unicode-bidi: embed !important;
+}
+
+/* Ensure cursor starts from left */
+[contenteditable]:focus {
+  direction: ltr !important;
+  text-align: left !important;
+}
+
+[contenteditable]:empty:before {
+  content: attr(data-placeholder);
+  color: #9ca3af;
+  font-style: italic;
+  pointer-events: none;
+  direction: ltr !important;
+  text-align: left !important;
+}
