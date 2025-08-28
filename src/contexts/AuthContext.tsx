@@ -96,32 +96,35 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      // Try Supabase authentication first
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
+      // Try Supabase authentication first (but don't fail if it doesn't work)
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
 
-      if (data.user && !error) {
-        // Get user profile from database
-        const userProfile = await databaseService.getUserByEmail(email);
-        if (userProfile) {
-          const userData = {
-            id: userProfile.id,
-            name: userProfile.name,
-            email: userProfile.email,
-            role: userProfile.role
-          };
-          setUser(userData);
-          localStorage.setItem('user', JSON.stringify(userData));
-          return true;
+        if (data.user && !error) {
+          // Get user profile from database
+          const userProfile = await databaseService.getUserByEmail(email);
+          if (userProfile) {
+            const userData = {
+              id: userProfile.id,
+              name: userProfile.name,
+              email: userProfile.email,
+              role: userProfile.role
+            };
+            setUser(userData);
+            localStorage.setItem('user', JSON.stringify(userData));
+            console.log('Supabase authentication successful for:', email);
+            return true;
+          }
         }
+      } catch (supabaseError) {
+        console.log('Supabase auth failed, falling back to mock authentication:', supabaseError);
       }
-    } catch (supabaseError) {
-      console.log('Supabase auth failed, trying demo credentials:', supabaseError);
-    }
 
-    // Mock authentication - replace with actual API call
+      // Mock authentication fallback
+      console.log('Attempting mock authentication for:', email);
     const mockUsers: User[] = [
       { id: '550e8400-e29b-41d4-a716-446655440001', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
       { id: '550e8400-e29b-41d4-a716-446655440002', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
@@ -132,40 +135,60 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const foundUser = mockUsers.find(u => u.email === email);
     if (foundUser && password === 'password123') {
-      // First check if user exists in database by email
+      console.log('Mock user found:', foundUser.email, 'with ID:', foundUser.id);
+      
       try {
+        // First check if user exists in database by email
         let existingUser = await databaseService.getUserByEmail(foundUser.email);
         if (!existingUser) {
-          // User doesn't exist, create it with the mock user's ID
+          console.log('User not found in database, creating:', foundUser.email);
           existingUser = await databaseService.createUser({
             id: foundUser.id,
             email: foundUser.email,
             name: foundUser.name,
             role: foundUser.role as any
           });
+          console.log('User created in database with ID:', existingUser?.id);
+        } else {
+          console.log('User found in database with ID:', existingUser.id);
         }
         
-        // Use the database user's actual ID (which should match the mock ID)
-        const userData = {
-          id: existingUser.id,
-          name: existingUser.name,
-          email: existingUser.email,
-          role: existingUser.role
-        };
-        
-        setUser(userData);
-        localStorage.setItem('user', JSON.stringify(userData));
-        console.log('Mock user logged in with database ID:', existingUser.id);
-        return true;
+        if (existingUser) {
+          // Use the database user's actual ID
+          const userData = {
+            id: existingUser.id,
+            name: existingUser.name,
+            email: existingUser.email,
+            role: existingUser.role
+          };
+          
+          setUser(userData);
+          localStorage.setItem('user', JSON.stringify(userData));
+          console.log('Mock user logged in successfully with database ID:', existingUser.id);
+          return true;
+        }
       } catch (error) {
         console.error('Error checking/creating mock user in database:', error);
-        // Fallback to mock user if database operations fail
+        console.log('Database operations failed, using mock user data as fallback');
+      }
+      
+      // Final fallback: use mock user data directly if database operations fail
+      try {
         setUser(foundUser);
         localStorage.setItem('user', JSON.stringify(foundUser));
+        console.log('Using mock user data as fallback:', foundUser.email);
         return true;
+      } catch (fallbackError) {
+        console.error('Even fallback failed:', fallbackError);
       }
     }
+    
+    console.log('Login failed: no matching user found or incorrect password');
     return false;
+    } catch (error) {
+      console.error('Login process failed with error:', error);
+      return false;
+    }
   };
 
   const logout = () => {
