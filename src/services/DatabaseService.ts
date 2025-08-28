@@ -339,7 +339,7 @@ export class DatabaseService {
     // Clean the session data and ensure proper format
     const cleanSessionData = {
       ...sessionData,
-      id: sessionData.id || crypto.randomUUID(),
+      id: this.validateAndGenerateUUID(sessionData.id),
       user_id: sessionData.user_id,
       survey_id: sessionData.survey_id,
       category: sessionData.category || null,
@@ -421,7 +421,7 @@ export class DatabaseService {
     // Clean the message data and ensure proper format
     const cleanMessageData = {
       ...messageData,
-      id: messageData.id || crypto.randomUUID(),
+      id: this.validateAndGenerateUUID(messageData.id),
       session_id: messageData.session_id,
       content: messageData.content || '',
       rich_content: messageData.rich_content || null,
@@ -741,6 +741,19 @@ export class DatabaseService {
     }
 
     return data;
+  }
+
+  // Utility method to validate and generate proper UUIDs
+  private validateAndGenerateUUID(id?: string): string {
+    // Check if the provided ID is a valid UUID format
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (id && uuidRegex.test(id)) {
+      return id;
+    }
+    
+    // Generate a new UUID if the provided ID is invalid or missing
+    return crypto.randomUUID();
   }
 }
 
