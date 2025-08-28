@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useAuth } from './AuthContext';
 import { useDocuments } from './DocumentContext';
+import { useSurveys } from '../hooks/useDatabase';
 import { SLMService } from '../services/SLMService';
 import { databaseService } from '../services/DatabaseService';
 
@@ -96,6 +97,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const [slmService] = useState(() => new SLMService());
   const { user } = useAuth();
   const { searchDocuments, searchImages, updateChunkFeedback, updateAdminKnowledgeDocument } = useDocuments();
+  const { surveys } = useSurveys();
 
   // Load global unanswered queries on component mount (independent of user)
   useEffect(() => {
