@@ -132,17 +132,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const foundUser = mockUsers.find(u => u.email === email);
     if (foundUser && password === 'password123') {
-      // Ensure the mock user exists in the database
+      // Check if the mock user already exists in the database
       try {
-        await databaseService.createUser({
-          id: foundUser.id,
-          email: foundUser.email,
-          name: foundUser.name,
-          role: foundUser.role as any
-        });
+        const existingUser = await databaseService.getUser(foundUser.id);
+        if (!existingUser) {
+          // User doesn't exist, create it
+          await databaseService.createUser({
+            id: foundUser.id,
+            email: foundUser.email,
+            name: foundUser.name,
+            role: foundUser.role as any
+          });
+        }
       } catch (error) {
-        // User might already exist, which is fine
-        console.log('Mock user might already exist in database:', error);
+        // Handle any database errors
+        console.log('Error checking/creating mock user in database:', error);
       }
       
       setUser(foundUser);
