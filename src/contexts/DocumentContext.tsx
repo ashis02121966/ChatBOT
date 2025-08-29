@@ -57,7 +57,7 @@ export interface ProcessedDocument {
 
 interface DocumentContextType {
   documents: ProcessedDocument[];
-  processDocument: (file: File, surveyId: string) => Promise<void>;
+  processDocument: (file: File, surveyId: string, category?: string) => Promise<void>;
   addDocument: (document: ProcessedDocument) => void;
   updateAdminKnowledgeDocument: (question: string, answer: string, surveyId?: string) => void;
   updateChunkFeedback: (chunkId: string, feedbackType: 'correct' | 'incorrect') => void;
@@ -265,33 +265,60 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     console.log(`Processing document: ${file.name} for survey: ${surveyId}, category: ${category}`);
     
     try {
-      // Process document using server-side service with database integration
-      const processedDoc = await documentService.processDocument(file, surveyId);
+      // Try server-side processing first, fallback to client-side
+      let processedDoc: ProcessedDocument;
       
-      // Save document and chunks to database
-      const savedDocument = await saveDocumentToDatabase(processedDoc, surveyId, category, user.id);
-      
-      if (!savedDocument) {
-        throw new Error('Failed to save processed document to database');
+      try {
+        console.log('Attempting server-side document processing...');
+        const serverProcessedDoc = await documentService.processDocument(file, surveyId);
+        
+        // Save document and chunks to database
+        const savedDocument = await saveDocumentToDatabase(serverProcessedDoc, surveyId, category, user.id);
+        
+        if (!savedDocument) {
+          throw new Error('Failed to save processed document to database');
+        }
+        
+        // Create enhanced document for local state
+        processedDoc = {
+          id: savedDocument.id,
+          fileName: savedDocument.file_name,
+          surveyId: surveyId,
+          category: category,
+          content: savedDocument.content,
+          chunks: serverProcessedDoc.chunks || [],
+          images: serverProcessedDoc.images || [],
+          metadata: {
+            ...savedDocument.metadata,
+            processingMethod: 'server-side'
+          }
+        };
+        
+        console.log('Server-side processing successful:', processedDoc.fileName);
+      } catch (serverError) {
+        console.warn('Server-side processing failed, falling back to client-side:', serverError);
+        
+        // Fallback to client-side processing
+        processedDoc = await processDocumentClientSide(file, surveyId, category);
+        
+        // Save client-processed document to database
+        try {
+          const savedDocument = await saveDocumentToDatabase(processedDoc, surveyId, category, user.id);
+          if (savedDocument) {
+            processedDoc.id = savedDocument.id;
+          }
+        } catch (dbError) {
+          console.warn('Failed to save client-processed document to database:', dbError);
+          // Continue with local storage only
+        }
+        
+        console.log('Client-side processing successful:', processedDoc.fileName);
       }
       
-      // Create enhanced document for local state
-      const enhancedDoc: ProcessedDocument = {
-        id: savedDocument.id,
-        fileName: savedDocument.file_name,
-        surveyId: surveyId,
-        category: category,
-        content: savedDocument.content,
-        chunks: processedDoc.chunks || [],
-        images: processedDoc.images || [],
-        metadata: savedDocument.metadata || {}
-      };
-      
       // Add to local state
-      setDocuments(prev => [...prev, enhancedDoc]);
+      setDocuments(prev => [...prev, processedDoc]);
       
-      console.log('Document processed and saved successfully:', enhancedDoc.fileName);
-      return enhancedDoc;
+      console.log('Document processed and saved successfully:', processedDoc.fileName);
     } catch (error) {
       console.error('Document processing failed:', error);
       throw error;
@@ -624,8 +651,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const searchDocuments = (query: string, surveyId?: string, category?: string): DocumentChunk[] => {
-    // Use database search for better performance and accuracy
-    return searchDocumentsInDatabase(query, surveyId, category);
+    // Use local search for immediate results (database search is async)
+    return searchDocumentsLocally(query, surveyId, category);
   };
   
   const searchDocumentsInDatabase = async (query: string, surveyId?: string, category?: string): Promise<any[]> => {
@@ -751,8 +778,12 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const getDocumentsBySurvey = (surveyId: string, category?: string): ProcessedDocument[] => {
-    // Load documents from database for the specified survey and category
-    return loadDocumentsFromDatabase(surveyId, category);
+    // Return documents from local state (synchronous)
+    return documents.filter(doc => {
+      const matchesSurvey = doc.surveyId === surveyId;
+      const matchesCategory = !category || doc.category === category;
+      return matchesSurvey && matchesCategory;
+    });
   };
   
   const loadDocumentsFromDatabase = async (surveyId: string, category?: string): Promise<ProcessedDocument[]> => {
