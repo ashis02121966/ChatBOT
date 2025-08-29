@@ -1,12 +1,13 @@
 import { TextExtractor } from './TextExtractor.js';
 // import { ImageExtractor } from './ImageExtractor.js'; // Commented out - file not available
 import { ChunkProcessor } from './ChunkProcessor.js';
+import { ImageExtractor } from './ImageExtractor.js';
 import { v4 as uuidv4 } from 'uuid';
 
 export class DocumentProcessor {
   constructor() {
     this.textExtractor = new TextExtractor();
-    // this.imageExtractor = new ImageExtractor(); // Commented out - ImageExtractor not available
+    this.imageExtractor = new ImageExtractor();
     this.chunkProcessor = new ChunkProcessor();
   }
 
@@ -30,8 +31,13 @@ export class DocumentProcessor {
       // Extract images with comprehensive processing
       console.log('Performing comprehensive image extraction...');
       let images = [];
-      // Image extraction temporarily disabled - ImageExtractor not available
-      console.log('Image extraction skipped - ImageExtractor not available');
+      try {
+        images = await this.imageExtractor.extractImages(file);
+        console.log(`Image extraction successful: ${images.length} images extracted`);
+      } catch (imageError) {
+        console.warn('Image extraction failed:', imageError.message);
+        images = [];
+      }
 
       // Process text into comprehensive chunks
       console.log('Creating comprehensive content chunks...');
@@ -304,7 +310,7 @@ export class DocumentProcessor {
   async cleanup() {
     try {
       await this.textExtractor.cleanup();
-      // await this.imageExtractor.cleanup(); // Commented out - ImageExtractor not available
+      await this.imageExtractor.cleanup();
       console.log('Document processor cleanup completed');
     } catch (error) {
       console.error('Document processor cleanup error:', error);

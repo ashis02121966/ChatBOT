@@ -6,6 +6,8 @@ import fs from 'fs-extra';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
+import { DocumentProcessor } from './services/DocumentProcessor.js';
+import { databaseService } from './services/DatabaseService.js';
 
 dotenv.config();
 
@@ -61,6 +63,18 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Initialize server asynchronously
 async function initializeServer() {
   try {
+    // Initialize document processor
+    const documentProcessor = new DocumentProcessor();
+    
+    // Test database connection
+    console.log('Testing database connection...');
+    const dbConnected = await databaseService.checkConnection();
+    if (!dbConnected) {
+      console.warn('Database connection failed - documents will not be saved to database');
+    } else {
+      console.log('Database connection successful');
+    }
+
     // Create uploads directory
     const uploadsDir = path.join(__dirname, 'uploads');
     await fs.ensureDir(uploadsDir);
@@ -120,7 +134,7 @@ async function initializeServer() {
           });
         }
 
-        const { surveyId } = req.body;
+        const { surveyId, category } = req.body;
         if (!surveyId) {
           return res.status(400).json({
             success: false,
@@ -128,40 +142,78 @@ async function initializeServer() {
           });
         }
 
-        console.log(`Processing document: ${req.file.originalname} for survey: ${surveyId}`);
+        console.log(`Processing document: ${req.file.originalname} for survey: ${surveyId}, category: ${category || 'General Questions'}`);
 
-        // Mock successful processing response
-        const mockProcessedDocument = {
-          id: uuidv4(),
-          fileName: req.file.originalname,
-          surveyId: surveyId,
-          content: `Mock extracted text content from ${req.file.originalname}. This would contain the actual document text in a real implementation.`,
-          chunks: [
-            {
-              id: `chunk-1-${uuidv4()}`,
-              content: `Sample chunk 1 from ${req.file.originalname}`,
-              metadata: {
-                section: 'Section 1',
-                keywords: ['sample', 'document', 'text'],
-                entities: ['Document', 'Sample'],
-                wordCount: 50,
-                characterCount: 250,
-                contentType: 'general'
-              }
+        // Process document using DocumentProcessor
+        const processedDocument = await documentProcessor.processDocument(req.file, surveyId);
+        
+        // Save to database
+        try {
+          // Create document record
+          const documentData = {
+            id: processedDocument.id,
+            file_name: processedDocument.fileName,
+            survey_id: processedDocument.surveyId,
+            category: category || 'General Questions',
+            content: processedDocument.content,
+            file_type: processedDocument.metadata.fileType,
+            word_count: processedDocument.metadata.wordCount,
+            character_count: processedDocument.metadata.characterCount,
+            chunk_count: processedDocument.metadata.chunkCount,
+            image_count: processedDocument.metadata.imageCount,
+            processing_method: processedDocument.metadata.processingMethod,
+            is_admin_generated: false,
+            user_id: null // Will be set by RLS if user is authenticated
+          };
+          
+          console.log('Saving document to database...');
+          const savedDocument = await databaseService.createDocument(documentData);
+          
+          if (savedDocument) {
+            console.log('Document saved successfully:', savedDocument.id);
+            
+            // Save document chunks
+            if (processedDocument.chunks && processedDocument.chunks.length > 0) {
+              const chunksData = processedDocument.chunks.map(chunk => ({
+                id: chunk.id,
+                document_id: savedDocument.id,
+                content: chunk.content,
+                section: chunk.metadata.section || 'Section',
+                keywords: chunk.metadata.keywords || [],
+                entities: chunk.metadata.entities || [],
+                word_count: chunk.metadata.wordCount || 0,
+                character_count: chunk.metadata.characterCount || 0,
+                content_type: chunk.metadata.contentType || 'general',
+                importance: chunk.metadata.importance || 1.0,
+                is_admin_answer: false
+              }));
+              
+              console.log(`Saving ${chunksData.length} chunks to database...`);
+              const savedChunks = await databaseService.createDocumentChunks(chunksData);
+              console.log(`${savedChunks.length} chunks saved successfully`);
             }
-          ],
-          images: [],
-          metadata: {
-            fileType: req.file.mimetype,
-            uploadDate: new Date(),
-            processedDate: new Date(),
-            wordCount: 150,
-            characterCount: 800,
-            chunkCount: 1,
-            imageCount: 0,
-            processingMethod: 'server-side'
+            
+            // Save document images
+            if (processedDocument.images && processedDocument.images.length > 0) {
+              const imagesData = processedDocument.images.map(image => ({
+                id: image.id,
+                document_id: savedDocument.id,
+                chunk_id: null, // Will be linked to specific chunks if needed
+                file_name: image.fileName,
+                description: image.description,
+                image_type: image.type || 'document',
+                data_url: image.dataUrl
+              }));
+              
+              console.log(`Saving ${imagesData.length} images to database...`);
+              const savedImages = await databaseService.createDocumentImages(imagesData);
+              console.log(`${savedImages.length} images saved successfully`);
+            }
           }
-        };
+        } catch (dbError) {
+          console.error('Database save error:', dbError);
+          // Continue with response even if database save fails
+        }
 
         // Clean up uploaded file
         try {
@@ -172,7 +224,7 @@ async function initializeServer() {
 
         res.json({
           success: true,
-          data: mockProcessedDocument
+          data: processedDocument
         });
 
       } catch (error) {
@@ -198,7 +250,7 @@ async function initializeServer() {
     app.post('/api/process-documents', upload.array('documents', 10), async (req, res) => {
       try {
         const files = req.files;
-        const { surveyId } = req.body;
+        const { surveyId, category } = req.body;
 
         if (!files || files.length === 0) {
           return res.status(400).json({
@@ -214,37 +266,87 @@ async function initializeServer() {
           });
         }
 
-        console.log(`Processing ${files.length} documents for survey: ${surveyId}`);
+        console.log(`Processing ${files.length} documents for survey: ${surveyId}, category: ${category || 'General Questions'}`);
 
-        // Mock batch processing response
-        const processedDocuments = files.map(file => ({
-          id: uuidv4(),
-          fileName: file.originalname,
-          surveyId: surveyId,
-          content: `Mock extracted text from ${file.originalname}`,
-          chunks: [{
-            id: `chunk-${uuidv4()}`,
-            content: `Sample content from ${file.originalname}`,
-            metadata: {
-              section: 'Section 1',
-              keywords: ['sample'],
-              entities: [],
-              wordCount: 25,
-              characterCount: 150
+        // Process each document
+        const processedDocuments = [];
+        const errors = [];
+        
+        for (const file of files) {
+          try {
+            console.log(`Processing file: ${file.originalname}`);
+            const processedDoc = await documentProcessor.processDocument(file, surveyId);
+            
+            // Save to database
+            try {
+              const documentData = {
+                id: processedDoc.id,
+                file_name: processedDoc.fileName,
+                survey_id: processedDoc.surveyId,
+                category: category || 'General Questions',
+                content: processedDoc.content,
+                file_type: processedDoc.metadata.fileType,
+                word_count: processedDoc.metadata.wordCount,
+                character_count: processedDoc.metadata.characterCount,
+                chunk_count: processedDoc.metadata.chunkCount,
+                image_count: processedDoc.metadata.imageCount,
+                processing_method: processedDoc.metadata.processingMethod,
+                is_admin_generated: false,
+                user_id: null
+              };
+              
+              const savedDocument = await databaseService.createDocument(documentData);
+              
+              if (savedDocument) {
+                // Save chunks
+                if (processedDoc.chunks && processedDoc.chunks.length > 0) {
+                  const chunksData = processedDoc.chunks.map(chunk => ({
+                    id: chunk.id,
+                    document_id: savedDocument.id,
+                    content: chunk.content,
+                    section: chunk.metadata.section || 'Section',
+                    keywords: chunk.metadata.keywords || [],
+                    entities: chunk.metadata.entities || [],
+                    word_count: chunk.metadata.wordCount || 0,
+                    character_count: chunk.metadata.characterCount || 0,
+                    content_type: chunk.metadata.contentType || 'general',
+                    importance: chunk.metadata.importance || 1.0,
+                    is_admin_answer: false
+                  }));
+                  
+                  await databaseService.createDocumentChunks(chunksData);
+                }
+                
+                // Save images
+                if (processedDoc.images && processedDoc.images.length > 0) {
+                  const imagesData = processedDoc.images.map(image => ({
+                    id: image.id,
+                    document_id: savedDocument.id,
+                    chunk_id: null,
+                    file_name: image.fileName,
+                    description: image.description,
+                    image_type: image.type || 'document',
+                    data_url: image.dataUrl
+                  }));
+                  
+                  await databaseService.createDocumentImages(imagesData);
+                }
+              }
+            } catch (dbError) {
+              console.error(`Database save error for ${file.originalname}:`, dbError);
+              // Continue processing other files
             }
-          }],
-          images: [],
-          metadata: {
-            fileType: file.mimetype,
-            uploadDate: new Date(),
-            processedDate: new Date(),
-            wordCount: 100,
-            characterCount: 500,
-            chunkCount: 1,
-            imageCount: 0,
-            processingMethod: 'server-side'
+            
+            processedDocuments.push(processedDoc);
+            
+          } catch (fileError) {
+            console.error(`Error processing ${file.originalname}:`, fileError);
+            errors.push({
+              fileName: file.originalname,
+              error: fileError.message
+            });
           }
-        }));
+        }
 
         // Clean up uploaded files
         files.forEach(file => {
@@ -261,8 +363,9 @@ async function initializeServer() {
             documents: processedDocuments,
             summary: {
               total: files.length,
-              successful: files.length,
-              failed: 0
+              successful: processedDocuments.length,
+              failed: errors.length,
+              errors: errors
             }
           }
         });
