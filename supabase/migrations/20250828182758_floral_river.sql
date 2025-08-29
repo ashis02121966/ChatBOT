@@ -1,4 +1,3 @@
-@@ .. @@
  -- Insert demo users into auth.users if they don't exist
 -INSERT INTO auth.users (id, email, encrypted_password, email_confirmed_at, created_at, updated_at, raw_app_meta_data, raw_user_meta_data, is_super_admin, role)
 -VALUES 
