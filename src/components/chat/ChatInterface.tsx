@@ -52,7 +52,7 @@ export default function ChatInterface() {
       if (response === 'yes' || response === 'no') {
         handleFeedbackResponse(pendingFeedback, response === 'yes');
         setMessage('');
-        setPendingFeedback(null);
+  const docCategories = (availableDocs || []).reduce((acc: string[], doc) => {
         return;
       }
     }
