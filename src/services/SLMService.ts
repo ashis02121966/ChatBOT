@@ -24,30 +24,33 @@ export class SLMService {
     try {
       console.log('Initializing SLM models...');
       
-      // Set a shorter timeout for model loading
+      // Set a longer timeout for model loading (5 minutes)
       const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Model loading timeout')), 30000)
+        setTimeout(() => reject(new Error('Model loading timeout')), 300000)
       );
 
       // Initialize question-answering model first (more reliable)
       try {
         console.log('Attempting to load question-answering model...');
-        this.questionAnswerer = await pipeline(
-          'question-answering',
-          'Xenova/distilbert-base-uncased-distilled-squad',
-          { 
-            revision: 'main',
-            quantized: true,
-            cache_dir: './.cache/transformers',
-            progress_callback: (progress) => {
-              if (progress.status === 'downloading') {
-                console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
-              } else if (progress.status === 'loading') {
-                console.log('Loading QA model into memory...');
+        this.questionAnswerer = await Promise.race([
+          pipeline(
+            'question-answering',
+            'Xenova/distilbert-base-uncased-distilled-squad',
+            { 
+              revision: 'main',
+              quantized: true,
+              cache_dir: './.cache/transformers',
+              progress_callback: (progress) => {
+                if (progress.status === 'downloading') {
+                  console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
+                } else if (progress.status === 'loading') {
+                  console.log('Loading QA model into memory...');
+                }
               }
             }
-          }
-        );
+          ),
+          timeout
+        ]);
         console.log('Question-answering model loaded successfully');
       } catch (qaError) {
         console.warn('Failed to load question-answering model:', qaError);
@@ -66,22 +69,61 @@ export class SLMService {
       // Try a smaller, more reliable text generation model
       try {
         console.log('Attempting to load text generation model...');
-        this.textGenerator = await pipeline(
-          'text-generation',
-          'Xenova/gpt2',
+        this.textGenerator = await Promise.race([
+          'question-answering',
+          'Xenova/distilbert-base-uncased-distilled-squad',
           { 
             revision: 'main',
             quantized: true,
             cache_dir: './.cache/transformers',
             progress_callback: (progress) => {
               if (progress.status === 'downloading') {
-                console.log(`Downloading text model: ${Math.round(progress.progress || 0)}%`);
+                console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
               } else if (progress.status === 'loading') {
-                console.log('Loading text generation model into memory...');
+                console.log('Loading QA model into memory...');
               }
             }
           }
-        );
+          ),
+          timeout
+        ]);
+        console.log('Question-answering model loaded successfully');
+      } catch (qaError) {
+        console.warn('Failed to load question-answering model:', qaError);
+        if (qaError.message.includes('<!doctype') || 
+            qaError.message.includes('Unexpected token') ||
+            qaError.message.includes('is not valid JSON') ||
+            qaError.message.includes('NetworkError') ||
+            qaError.message.includes('Failed to fetch')) {
+          this.networkError = true;
+          this.initializationError = 'Network error: Unable to download AI models. This may be due to network restrictions or server issues.';
+        } else {
+          this.initializationError = `QA model failed: ${qaError.message}`;
+        }
+      }
+
+      // Try a smaller, more reliable text generation model
+      try {
+        console.log('Attempting to load text generation model...');
+        this.textGenerator = await Promise.race([
+          pipeline(
+            'text-generation',
+            'Xenova/gpt2',
+            { 
+              revision: 'main',
+              quantized: true,
+              cache_dir: './.cache/transformers',
+              progress_callback: (progress) => {
+                if (progress.status === 'downloading') {
+                  console.log(`Downloading text model: ${Math.round(progress.progress || 0)}%`);
+                } else if (progress.status === 'loading') {
+                  console.log('Loading text generation model into memory...');
+                }
+              }
+            }
+          ),
+          timeout
+        ]);
         console.log('Text generation model loaded successfully');
       } catch (tgError) {
         console.warn('Failed to load text generation model:', tgError);

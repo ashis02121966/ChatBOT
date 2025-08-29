@@ -527,6 +527,42 @@ async function initializeServer() {
       }
     });
 
+    // Error handling middleware (must be after all routes)
+    app.use((error, req, res, next) => {
+      console.error('Server error:', error);
+      
+      // Handle multer errors specifically
+      if (error instanceof multer.MulterError) {
+        if (error.code === 'LIMIT_FILE_SIZE') {
+          return res.status(400).json({
+            success: false,
+            error: 'File too large. Maximum file size is 50MB.'
+          });
+        } else if (error.code === 'LIMIT_FILE_COUNT') {
+          return res.status(400).json({
+            success: false,
+            error: 'Too many files. Maximum 10 files allowed.'
+          });
+        } else if (error.code === 'LIMIT_UNEXPECTED_FILE') {
+          return res.status(400).json({
+            success: false,
+            error: 'Unexpected file field.'
+          });
+        }
+        
+        return res.status(400).json({
+          success: false,
+          error: `File upload error: ${error.message}`
+        });
+      }
+      
+      // Handle other errors
+      res.status(500).json({
+        success: false,
+        error: process.env.NODE_ENV === 'development' ? error.message : 'Internal server error'
+      });
+    });
+
     // Start the server
     app.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
