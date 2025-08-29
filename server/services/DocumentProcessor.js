@@ -12,46 +12,49 @@ export class DocumentProcessor {
   }
 
   async processDocument(file, surveyId) {
-    console.log(`Starting comprehensive document processing for: ${file.originalname}`);
+    console.log(`📄 Starting comprehensive document processing for: ${file.originalname}`);
+    console.log(`📋 File details: ${file.mimetype}, ${this.formatFileSize(file.size)}`);
     
     try {
       // Validate document first
+      console.log('🔍 Validating document...');
       await this.validateDocument(file);
+      console.log('✅ Document validation passed');
 
       // Extract text content with comprehensive processing
-      console.log('Performing comprehensive text extraction...');
+      console.log('📝 Performing comprehensive text extraction...');
       const textContent = await this.textExtractor.extractText(file);
       
       if (!textContent || textContent.length < 100) {
         throw new Error(`Insufficient text content extracted from ${file.originalname}. The document may be image-based, corrupted, or password-protected. Extracted: ${textContent?.length || 0} characters.`);
       }
 
-      console.log(`Text extraction successful: ${textContent.length} characters extracted`);
+      console.log(`✅ Text extraction successful: ${textContent.length} characters extracted`);
 
       // Extract images with comprehensive processing
-      console.log('Performing comprehensive image extraction...');
+      console.log('🖼️ Performing comprehensive image extraction...');
       let images = [];
       try {
         images = await this.imageExtractor.extractImages(file);
-        console.log(`Image extraction successful: ${images.length} images extracted`);
+        console.log(`✅ Image extraction successful: ${images.length} images extracted`);
       } catch (imageError) {
-        console.warn('Image extraction failed:', imageError.message);
+        console.warn('⚠️ Image extraction failed:', imageError.message);
         images = [];
       }
 
       // Process text into comprehensive chunks
-      console.log('Creating comprehensive content chunks...');
+      console.log('🧩 Creating comprehensive content chunks...');
       const chunks = await this.chunkProcessor.createChunks(textContent, file.originalname);
       
       if (!chunks || chunks.length === 0) {
         throw new Error('Failed to create content chunks from extracted text');
       }
 
-      console.log(`Chunk processing successful: ${chunks.length} high-quality chunks created`);
+      console.log(`✅ Chunk processing successful: ${chunks.length} high-quality chunks created`);
 
       // Create comprehensive processed document object
       const processedDocument = {
-        id: uuidv4(),
+        id: this.validateAndGenerateUUID(),
         fileName: file.originalname,
         surveyId: surveyId,
         content: textContent,
@@ -66,7 +69,7 @@ export class DocumentProcessor {
           characterCount: textContent.length,
           chunkCount: chunks.length,
           imageCount: images.length,
-          processingMethod: 'server-side-enhanced',
+          processingMethod: 'server-side-enhanced-v2',
           processingQuality: this.assessProcessingQuality(textContent, chunks, images),
           contextRichness: this.calculateContextRichness(chunks),
           extractionConfidence: this.calculateExtractionConfidence(textContent, file),
@@ -75,18 +78,19 @@ export class DocumentProcessor {
       };
 
       // Log comprehensive processing results
-      console.log(`Comprehensive document processing completed successfully for ${file.originalname}:`);
-      console.log(`  - Text: ${processedDocument.metadata.wordCount} words (${processedDocument.metadata.characterCount} characters)`);
-      console.log(`  - Chunks: ${processedDocument.metadata.chunkCount} high-quality segments`);
-      console.log(`  - Images: ${processedDocument.metadata.imageCount} visual representations`);
-      console.log(`  - Processing Quality: ${processedDocument.metadata.processingQuality}`);
-      console.log(`  - Context Richness: ${processedDocument.metadata.contextRichness}`);
-      console.log(`  - AI Readiness: ${processedDocument.metadata.aiReadiness}`);
+      console.log(`🎉 Comprehensive document processing completed successfully for ${file.originalname}:`);
+      console.log(`  📝 Text: ${processedDocument.metadata.wordCount} words (${processedDocument.metadata.characterCount} characters)`);
+      console.log(`  🧩 Chunks: ${processedDocument.metadata.chunkCount} high-quality segments`);
+      console.log(`  🖼️ Images: ${processedDocument.metadata.imageCount} visual representations`);
+      console.log(`  ⭐ Processing Quality: ${processedDocument.metadata.processingQuality}`);
+      console.log(`  🧠 Context Richness: ${processedDocument.metadata.contextRichness}`);
+      console.log(`  🤖 AI Readiness: ${processedDocument.metadata.aiReadiness}`);
+      console.log(`  🆔 Document ID: ${processedDocument.id}`);
 
       return processedDocument;
 
     } catch (error) {
-      console.error(`Comprehensive document processing failed for ${file.originalname}:`, error);
+      console.error(`❌ Comprehensive document processing failed for ${file.originalname}:`, error);
       throw new Error(`Failed to process document "${file.originalname}": ${error.message}`);
     }
   }
@@ -269,6 +273,17 @@ export class DocumentProcessor {
     if (readinessScore >= 55) return 'Good';
     if (readinessScore >= 40) return 'Fair';
     return 'Basic';
+  }
+
+  // Utility method to validate and generate UUIDs
+  validateAndGenerateUUID(id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    
+    if (id && uuidRegex.test(id)) {
+      return id;
+    }
+    
+    return uuidv4();
   }
 
   formatFileSize(bytes) {

@@ -67,12 +67,12 @@ async function initializeServer() {
     const documentProcessor = new DocumentProcessor();
     
     // Test database connection
-    console.log('Testing database connection...');
-    const dbConnected = await databaseService.checkConnection();
+    console.log('🔍 Testing database connection and table access...');
+    const dbConnected = await databaseService.testConnection();
     if (!dbConnected) {
-      console.warn('Database connection failed - documents will not be saved to database');
+      console.warn('⚠️ Database connection failed - documents will not be saved to database');
     } else {
-      console.log('Database connection successful');
+      console.log('✅ Database connection and table access successful');
     }
 
     // Create uploads directory
@@ -145,10 +145,14 @@ async function initializeServer() {
         console.log(`Processing document: ${req.file.originalname} for survey: ${surveyId}, category: ${category || 'General Questions'}`);
 
         // Process document using DocumentProcessor
+        console.log('📄 Starting document processing...');
         const processedDocument = await documentProcessor.processDocument(req.file, surveyId);
+        console.log('✅ Document processing completed');
         
         // Save to database
         try {
+          console.log('💾 Starting database save operations...');
+          
           // Create document record
           const documentData = {
             id: processedDocument.id,
@@ -157,20 +161,31 @@ async function initializeServer() {
             category: category || 'General Questions',
             content: processedDocument.content,
             file_type: processedDocument.metadata.fileType,
+            upload_date: new Date().toISOString(),
+            processed_date: new Date().toISOString(),
             word_count: processedDocument.metadata.wordCount,
             character_count: processedDocument.metadata.characterCount,
             chunk_count: processedDocument.metadata.chunkCount,
             image_count: processedDocument.metadata.imageCount,
             processing_method: processedDocument.metadata.processingMethod,
             is_admin_generated: false,
-            user_id: null // Will be set by RLS if user is authenticated
+            user_id: null,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString()
           };
           
-          console.log('Saving document to database...');
+          console.log('💾 Saving document to database with data:', {
+            id: documentData.id,
+            fileName: documentData.file_name,
+            surveyId: documentData.survey_id,
+            category: documentData.category,
+            contentLength: documentData.content.length
+          });
+          
           const savedDocument = await databaseService.createDocument(documentData);
           
           if (savedDocument) {
-            console.log('Document saved successfully:', savedDocument.id);
+            console.log('✅ Document saved successfully:', savedDocument.id);
             
             // Save document chunks
             if (processedDocument.chunks && processedDocument.chunks.length > 0) {
@@ -188,9 +203,9 @@ async function initializeServer() {
                 is_admin_answer: false
               }));
               
-              console.log(`Saving ${chunksData.length} chunks to database...`);
+              console.log(`💾 Saving ${chunksData.length} chunks to database...`);
               const savedChunks = await databaseService.createDocumentChunks(chunksData);
-              console.log(`${savedChunks.length} chunks saved successfully`);
+              console.log(`✅ ${savedChunks.length} chunks saved successfully`);
             }
             
             // Save document images
@@ -205,13 +220,20 @@ async function initializeServer() {
                 data_url: image.dataUrl
               }));
               
-              console.log(`Saving ${imagesData.length} images to database...`);
+              console.log(`💾 Saving ${imagesData.length} images to database...`);
               const savedImages = await databaseService.createDocumentImages(imagesData);
-              console.log(`${savedImages.length} images saved successfully`);
+              console.log(`✅ ${savedImages.length} images saved successfully`);
+            } else {
+              console.log('ℹ️ No images to save for this document');
             }
+          } else {
+            console.error('❌ Document save returned null - check database constraints');
           }
         } catch (dbError) {
-          console.error('Database save error:', dbError);
+          console.error('❌ Database save error:', dbError);
+          console.error('❌ Error details:', dbError.details);
+          console.error('❌ Error hint:', dbError.hint);
+          console.error('❌ Error message:', dbError.message);
           // Continue with response even if database save fails
         }
 
@@ -274,11 +296,14 @@ async function initializeServer() {
         
         for (const file of files) {
           try {
-            console.log(`Processing file: ${file.originalname}`);
+            console.log(`📄 Processing file: ${file.originalname}`);
             const processedDoc = await documentProcessor.processDocument(file, surveyId);
+            console.log(`✅ File processing completed: ${file.originalname}`);
             
             // Save to database
             try {
+              console.log(`💾 Saving ${file.originalname} to database...`);
+              
               const documentData = {
                 id: processedDoc.id,
                 file_name: processedDoc.fileName,
@@ -286,18 +311,24 @@ async function initializeServer() {
                 category: category || 'General Questions',
                 content: processedDoc.content,
                 file_type: processedDoc.metadata.fileType,
+                upload_date: new Date().toISOString(),
+                processed_date: new Date().toISOString(),
                 word_count: processedDoc.metadata.wordCount,
                 character_count: processedDoc.metadata.characterCount,
                 chunk_count: processedDoc.metadata.chunkCount,
                 image_count: processedDoc.metadata.imageCount,
                 processing_method: processedDoc.metadata.processingMethod,
                 is_admin_generated: false,
-                user_id: null
+                user_id: null,
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
               };
               
               const savedDocument = await databaseService.createDocument(documentData);
               
               if (savedDocument) {
+                console.log(`✅ Document ${file.originalname} saved with ID: ${savedDocument.id}`);
+                
                 // Save chunks
                 if (processedDoc.chunks && processedDoc.chunks.length > 0) {
                   const chunksData = processedDoc.chunks.map(chunk => ({
@@ -314,7 +345,8 @@ async function initializeServer() {
                     is_admin_answer: false
                   }));
                   
-                  await databaseService.createDocumentChunks(chunksData);
+                  const savedChunks = await databaseService.createDocumentChunks(chunksData);
+                  console.log(`✅ ${savedChunks.length} chunks saved for ${file.originalname}`);
                 }
                 
                 // Save images
@@ -329,18 +361,26 @@ async function initializeServer() {
                     data_url: image.dataUrl
                   }));
                   
-                  await databaseService.createDocumentImages(imagesData);
+                  const savedImages = await databaseService.createDocumentImages(imagesData);
+                  console.log(`✅ ${savedImages.length} images saved for ${file.originalname}`);
+                } else {
+                  console.log(`ℹ️ No images to save for ${file.originalname}`);
                 }
+              } else {
+                console.error(`❌ Document save returned null for ${file.originalname}`);
               }
             } catch (dbError) {
-              console.error(`Database save error for ${file.originalname}:`, dbError);
+              console.error(`❌ Database save error for ${file.originalname}:`, dbError);
+              console.error('❌ Error details:', dbError.details);
+              console.error('❌ Error hint:', dbError.hint);
               // Continue processing other files
             }
             
             processedDocuments.push(processedDoc);
+            console.log(`✅ Successfully processed and saved: ${file.originalname}`);
             
           } catch (fileError) {
-            console.error(`Error processing ${file.originalname}:`, fileError);
+            console.error(`❌ Error processing ${file.originalname}:`, fileError);
             errors.push({
               fileName: file.originalname,
               error: fileError.message
@@ -357,6 +397,8 @@ async function initializeServer() {
           }
         });
 
+        console.log(`📊 Batch processing summary: ${processedDocuments.length}/${files.length} successful`);
+        
         res.json({
           success: true,
           data: {
