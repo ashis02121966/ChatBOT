@@ -1,5 +1,4 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
 import { databaseService } from '../services/DatabaseService';
 
 export interface User {
@@ -34,11 +33,109 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing Supabase session
+  // Check for existing user session from localStorage
   useEffect(() => {
-    const checkSession = async () => {
+    const checkStoredSession = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          const userData = JSON.parse(storedUser);
+          
+          // Verify user still exists and is active in database
+          const dbUser = await databaseService.getUser(userData.id);
+          if (dbUser && dbUser.status === 'active') {
+            setUser({
+              id: dbUser.id,
+              name: dbUser.name,
+              email: dbUser.email,
+              role: dbUser.role
+            });
+            
+            // Update last login
+            await databaseService.updateUser(dbUser.id, {
+              last_login: new Date().toISOString()
+            });
+          } else {
+            // User no longer exists or is inactive, clear session
+            localStorage.removeItem('user');
+          }
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+        localStorage.removeItem('user');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    checkStoredSession();
+  }, []);
+
+  const login = async (email: string, password: string): Promise<boolean> => {
+    try {
+      console.log('🔐 Attempting database authentication for:', email);
+      
+      // Get user from database
+      const dbUser = await databaseService.getUserByEmail(email);
+      
+      if (!dbUser) {
+        console.log('Authentication failed: User not found in database');
+        return false;
+      }
+      
+      if (dbUser.status !== 'active') {
+        console.log('Authentication failed: User account is inactive');
+        return false;
+      }
+      
+      // Verify password using database service
+      const isValidPassword = await databaseService.verifyUserPassword(email, password);
+      if (!isValidPassword) {
+        console.log('Authentication failed: Invalid password');
+        return false;
+      }
+      
+      // Update last login
+      await databaseService.updateUser(dbUser.id, {
+        last_login: new Date().toISOString()
+      });
+      
+      // Set user session with database user data
+      const userData = {
+        id: dbUser.id,
+        name: dbUser.name,
+        email: dbUser.email,
+        role: dbUser.role
+      };
+      
+      setUser(userData);
+      localStorage.setItem('user', JSON.stringify(userData));
+      
+      console.log('Database authentication successful for:', email, 'Database User ID:', dbUser.id);
+      return true;
+    } catch (error) {
+      console.error('Authentication error:', error);
+      return false;
+    }
+  };
+
+  const logout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    // Clear user-specific chat sessions
+    Object.keys(localStorage).forEach(key => {
+      if (key.startsWith('chatSessions_')) {
+        localStorage.removeItem(key);
+      }
+    });
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, loading, login, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+}
         
         if (session?.user) {
           // Get user profile from database

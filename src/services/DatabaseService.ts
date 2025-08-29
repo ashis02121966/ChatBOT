@@ -788,23 +788,28 @@ export class DatabaseService {
     return user;
   }
 
-  async signIn(email: string, password: string) {
-    // This method is deprecated - use getUserByEmail directly in AuthContext
-    throw new Error('Use getUserByEmail and password verification in AuthContext instead');
-  }
-
-  private async verifyPassword(inputPassword: string, storedHash: string, salt: string): Promise<boolean> {
-    // For demo purposes, we'll accept 'password123' for all users
-    // In production, you would use proper bcrypt or similar hashing
-    if (inputPassword === 'password123') {
-      return true;
+  async verifyUserPassword(email: string, password: string): Promise<boolean> {
+    try {
+      const user = await this.getUserByEmail(email);
+      if (!user) {
+        return false;
+      }
+      
+      // For demo purposes, accept 'password123' for all users
+      // In production, you would use proper bcrypt password hashing
+      if (password === 'password123') {
+        return true;
+      }
+      
+      // You could implement proper password verification here:
+      // const bcrypt = await import('bcryptjs');
+      // return bcrypt.compare(password, user.password_hash);
+      
+      return false;
+    } catch (error) {
+      console.error('Password verification error:', error);
+      return false;
     }
-    
-    // You could implement proper password hashing here:
-    // const bcrypt = await import('bcryptjs');
-    // return bcrypt.compare(inputPassword, storedHash);
-    
-    return false;
   }
 
   async signOut() {
