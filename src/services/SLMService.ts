@@ -70,20 +70,21 @@ export class SLMService {
       try {
         console.log('Attempting to load text generation model...');
         this.textGenerator = await Promise.race([
-          'question-answering',
-          'Xenova/distilbert-base-uncased-distilled-squad',
-          { 
-            revision: 'main',
-            quantized: true,
-            cache_dir: './.cache/transformers',
-            progress_callback: (progress) => {
-              if (progress.status === 'downloading') {
-                console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
-              } else if (progress.status === 'loading') {
-                console.log('Loading QA model into memory...');
+          pipeline(
+            'question-answering',
+            'Xenova/distilbert-base-uncased-distilled-squad',
+            { 
+              revision: 'main',
+              quantized: true,
+              cache_dir: './.cache/transformers',
+              progress_callback: (progress) => {
+                if (progress.status === 'downloading') {
+                  console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
+                } else if (progress.status === 'loading') {
+                  console.log('Loading QA model into memory...');
+                }
               }
             }
-          }
           ),
           timeout
         ]);
@@ -260,7 +261,7 @@ export class SLMService {
       type: bestMatch.type,
       score: bestMatch.score
     };
-  };
+  }
   
   // New unified scoring method for SLM
   private calculateUnifiedScore(chunk: any, queryWords: string[], fullQuery: string): number {
@@ -356,7 +357,7 @@ export class SLMService {
     }
     
     return score;
-  };
+  }
   
   // Extract relevant content from document chunks
   private extractRelevantContent(content: string, queryWords: string[], fullQuery: string): string {
@@ -472,6 +473,7 @@ export class SLMService {
     }
     return 'general';
   }
+  
   async generateResponse(query: string, context: string): Promise<string> {
     await this.initializationPromise;
     
