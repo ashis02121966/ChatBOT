@@ -52,7 +52,6 @@ export default function ChatInterface() {
       if (response === 'yes' || response === 'no') {
         handleFeedbackResponse(pendingFeedback, response === 'yes');
         setMessage('');
-  const docCategories = (availableDocs || []).reduce((acc: string[], doc) => {
         return;
       }
     }
@@ -77,6 +76,11 @@ export default function ChatInterface() {
 
   const handleCategoryChange = (categoryName: string) => {
     changeCategory(categoryName);
+  };
+
+  const handleCategorySelect = (categoryName: string) => {
+    setSelectedCategory(categoryName);
+    handleCategoryChange(categoryName);
   };
 
   if (!currentSession) {
@@ -147,8 +151,8 @@ export default function ChatInterface() {
               </div>
             </div>
           )}
-          </div>
         </div>
+      </div>
     );
   }
 
@@ -467,7 +471,6 @@ export default function ChatInterface() {
             <div className="mb-3 text-xs text-gray-500 flex items-center space-x-2">
               <FileText className="h-3 w-3" />
               <span>
-                Chatbot has access to {availableDocs.length} documents in "{currentCategory}": {availableDocs.map(doc => `${doc.fileName} (${doc.images.length} images)`).join(', ')}
                 Chatbot has access to {availableDocs.length} documents in "{currentCategory}": {availableDocs.map(doc => `${doc.fileName} (${doc.images.length} images)`).join(', ')}
               </span>
             </div>
