@@ -24,52 +24,40 @@ export class SLMService {
     try {
       console.log('Initializing SLM models...');
       
-      // Test network connectivity first
-      try {
-        const testResponse = await fetch('https://huggingface.co/api/models/distilbert-base-uncased', {
-          method: 'HEAD',
-          mode: 'no-cors'
-        });
-      } catch (networkError) {
-        console.warn('Network connectivity issue detected:', networkError);
-        this.networkError = true;
-        this.initializationError = 'Network connectivity issue - unable to reach Hugging Face servers';
-        this.isInitialized = false;
-        return;
-      }
-
       // Set a shorter timeout for model loading
       const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Model loading timeout - this may be due to network issues')), 20000)
+        setTimeout(() => reject(new Error('Model loading timeout')), 30000)
       );
 
       // Initialize question-answering model first (more reliable)
       try {
-        this.questionAnswerer = await Promise.race([
-          pipeline(
-            'question-answering',
-            'Xenova/distilbert-base-uncased-distilled-squad',
-            { 
-              revision: 'main',
-              quantized: true,
-              cache_dir: './.cache/transformers',
-              progress_callback: (progress) => {
-                if (progress.status === 'downloading') {
-                  console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
-                } else if (progress.status === 'loading') {
-                  console.log('Loading QA model into memory...');
-                }
+        console.log('Attempting to load question-answering model...');
+        this.questionAnswerer = await pipeline(
+          'question-answering',
+          'Xenova/distilbert-base-uncased-distilled-squad',
+          { 
+            revision: 'main',
+            quantized: true,
+            cache_dir: './.cache/transformers',
+            progress_callback: (progress) => {
+              if (progress.status === 'downloading') {
+                console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
+              } else if (progress.status === 'loading') {
+                console.log('Loading QA model into memory...');
               }
             }
-          ),
-          timeout
-        ]);
+          }
+        );
         console.log('Question-answering model loaded successfully');
       } catch (qaError) {
         console.warn('Failed to load question-answering model:', qaError);
-        if (qaError.message.includes('<!doctype') || qaError.message.includes('Unexpected token')) {
+        if (qaError.message.includes('<!doctype') || 
+            qaError.message.includes('Unexpected token') ||
+            qaError.message.includes('is not valid JSON') ||
+            qaError.message.includes('NetworkError') ||
+            qaError.message.includes('Failed to fetch')) {
           this.networkError = true;
-          this.initializationError = 'Network error: Unable to download AI models from Hugging Face';
+          this.initializationError = 'Network error: Unable to download AI models. This may be due to network restrictions or server issues.';
         } else {
           this.initializationError = `QA model failed: ${qaError.message}`;
         }
@@ -77,32 +65,34 @@ export class SLMService {
 
       // Try a smaller, more reliable text generation model
       try {
-        this.textGenerator = await Promise.race([
-          pipeline(
-            'text-generation',
-            'Xenova/gpt2',
-            { 
-              revision: 'main',
-              quantized: true,
-              cache_dir: './.cache/transformers',
-              progress_callback: (progress) => {
-                if (progress.status === 'downloading') {
-                  console.log(`Downloading text model: ${Math.round(progress.progress || 0)}%`);
-                } else if (progress.status === 'loading') {
-                  console.log('Loading text generation model into memory...');
-                }
+        console.log('Attempting to load text generation model...');
+        this.textGenerator = await pipeline(
+          'text-generation',
+          'Xenova/gpt2',
+          { 
+            revision: 'main',
+            quantized: true,
+            cache_dir: './.cache/transformers',
+            progress_callback: (progress) => {
+              if (progress.status === 'downloading') {
+                console.log(`Downloading text model: ${Math.round(progress.progress || 0)}%`);
+              } else if (progress.status === 'loading') {
+                console.log('Loading text generation model into memory...');
               }
             }
-          ),
-          timeout
-        ]);
+          }
+        );
         console.log('Text generation model loaded successfully');
       } catch (tgError) {
         console.warn('Failed to load text generation model:', tgError);
-        if (tgError.message.includes('<!doctype') || tgError.message.includes('Unexpected token')) {
+        if (tgError.message.includes('<!doctype') || 
+            tgError.message.includes('Unexpected token') ||
+            tgError.message.includes('is not valid JSON') ||
+            tgError.message.includes('NetworkError') ||
+            tgError.message.includes('Failed to fetch')) {
           this.networkError = true;
           if (!this.initializationError) {
-            this.initializationError = 'Network error: Unable to download AI models from Hugging Face';
+            this.initializationError = 'Network error: Unable to download AI models. This may be due to network restrictions or server issues.';
           }
         } else {
           if (this.initializationError) {
@@ -113,32 +103,29 @@ export class SLMService {
         }
       }
 
-      // If we have network errors, don't try to initialize
-      if (this.networkError) {
-        this.isInitialized = false;
-        console.log('SLM initialization failed due to network connectivity issues');
-        return;
-      }
-
       // Consider initialized if at least one model loaded
       this.isInitialized = this.questionAnswerer !== null || this.textGenerator !== null;
       
       if (!this.isInitialized) {
-        console.error(`All models failed to load. ${this.initializationError}`);
-        // Don't throw error, just log it and continue with fallback
+        console.warn(`All models failed to load. ${this.initializationError}`);
+        console.log('SLM will use intelligent fallback responses based on knowledge base');
       }
       
       if (this.isInitialized) {
         console.log('SLM models initialized successfully');
       } else {
-        console.log('SLM models failed to initialize, using intelligent fallback system');
+        console.log('SLM models unavailable - using intelligent knowledge-based responses');
       }
     } catch (error) {
       console.error('Failed to initialize SLM models:', error);
       this.isInitialized = false;
-      if (error.message.includes('<!doctype') || error.message.includes('Unexpected token')) {
+      if (error.message.includes('<!doctype') || 
+          error.message.includes('Unexpected token') ||
+          error.message.includes('is not valid JSON') ||
+          error.message.includes('NetworkError') ||
+          error.message.includes('Failed to fetch')) {
         this.networkError = true;
-        this.initializationError = 'Network error: Unable to download AI models from Hugging Face';
+        this.initializationError = 'Network error: Unable to download AI models. The system will use knowledge-based responses.';
       } else {
         this.initializationError = error.message;
       }
