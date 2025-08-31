@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://placeholder.supabase.co';
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'placeholder-key';
 
-// Create client with fallback values to prevent initialization errors
+// Create client with no storage to prevent tracking prevention errors
 let supabaseClient;
 try {
   supabaseClient = createClient(supabaseUrl, supabaseAnonKey, {
@@ -11,10 +11,16 @@ try {
       autoRefreshToken: false,
       persistSession: false,
       detectSessionInUrl: false,
+      flowType: 'implicit',
       storage: {
-        getItem: () => null,
-        setItem: () => {},
-        removeItem: () => {}
+        getItem: () => Promise.resolve(null),
+        setItem: () => Promise.resolve(),
+        removeItem: () => Promise.resolve()
+      }
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'survey-chatbot-client'
       }
     }
   });
@@ -22,15 +28,21 @@ try {
   console.warn('Supabase client creation failed, using mock client');
   supabaseClient = {
     from: () => ({
-      select: () => ({ data: [], error: null }),
-      insert: () => ({ data: null, error: null }),
-      update: () => ({ data: null, error: null }),
-      delete: () => ({ data: null, error: null })
+      select: () => Promise.resolve({ data: [], error: null }),
+      insert: () => Promise.resolve({ data: null, error: null }),
+      update: () => Promise.resolve({ data: null, error: null }),
+      delete: () => Promise.resolve({ data: null, error: null }),
+      eq: function() { return this; },
+      order: function() { return this; },
+      limit: function() { return this; },
+      single: function() { return this; },
+      maybeSingle: function() { return this; }
     }),
     auth: {
       getSession: () => Promise.resolve({ data: { session: null }, error: null }),
       signInWithPassword: () => Promise.resolve({ data: { user: null }, error: { message: 'Mock auth' } }),
-      signOut: () => Promise.resolve({ error: null })
+      signOut: () => Promise.resolve({ error: null }),
+      getUser: () => Promise.resolve({ data: { user: null }, error: null })
     }
   };
 }

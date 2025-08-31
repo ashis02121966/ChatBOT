@@ -34,8 +34,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Initialize without session check to avoid storage errors
+  // Initialize without any storage operations to prevent tracking prevention errors
   useEffect(() => {
+    // Set loading to false immediately to avoid any storage access
     setLoading(false);
   }, []);
 
@@ -43,7 +44,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       console.log('🔐 Attempting authentication for:', email);
       
-      // Use demo authentication only (no Supabase auth to avoid storage issues)
+      // Use demo authentication only - completely avoid any storage operations
       if (password === 'password123') {
         const demoUsers = {
           'admin@example.com': { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Admin User', email, role: 'admin' as const },
@@ -55,11 +56,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
         
         const userData = demoUsers[email as keyof typeof demoUsers];
         if (userData) {
+          console.log('✅ Demo authentication successful for:', userData.name);
           setUser(userData);
           return true;
         }
       }
       
+      console.log('❌ Authentication failed for:', email);
       return false;
     } catch (error) {
       console.error('Authentication error:', error);
@@ -68,6 +71,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
+    console.log('🚪 Logging out user');
     setUser(null);
   };
 

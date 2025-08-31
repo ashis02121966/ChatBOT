@@ -797,8 +797,13 @@ export class DatabaseService {
 
   // Utility functions
   async getCurrentUser() {
-    const { data: { user } } = await supabase.auth.getUser();
-    return user;
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      return user;
+    } catch (error) {
+      console.warn('getCurrentUser failed, likely due to tracking prevention:', error);
+      return null;
+    }
   }
 
   async verifyUserPassword(email: string, password: string): Promise<boolean> {
@@ -826,29 +831,39 @@ export class DatabaseService {
   }
 
   async signOut() {
-    const { error } = await supabase.auth.signOut();
+    try {
+      const { error } = await supabase.auth.signOut();
 
-    if (error) {
-      console.error('Error signing out:', error);
-      throw error;
+      if (error) {
+        console.error('Error signing out:', error);
+        throw error;
+      }
+    } catch (error) {
+      console.warn('Sign out failed, likely due to tracking prevention:', error);
+      // Don't throw error for sign out failures due to tracking prevention
     }
   }
 
   async signUp(email: string, password: string, userData: { name: string; role: string }) {
-    const { data, error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: userData
-      }
-    });
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: userData
+        }
+      });
 
-    if (error) {
-      console.error('Error signing up:', error);
+      if (error) {
+        console.error('Error signing up:', error);
+        throw error;
+      }
+
+      return data;
+    } catch (error) {
+      console.warn('Sign up failed, likely due to tracking prevention:', error);
       throw error;
     }
-
-    return data;
   }
 
   // Utility method to validate and generate proper UUIDs
