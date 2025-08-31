@@ -328,7 +328,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const saveDocumentToDatabase = async (
     processedDoc: any, 
     surveyId: string, 
-    category: string, 
+    category: string = 'General Questions',
+    userId?: string
     userId: string
   ) => {
     try {

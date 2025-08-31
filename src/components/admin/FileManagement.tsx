@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Upload, FileText, Trash2, Download, Plus, X } from 'lucide-react';
 import { useDocuments } from '../../contexts/DocumentContext';
+import { useAuth } from '../../contexts/AuthContext';
 import { DocumentService } from '../../services/DocumentService';
 
 interface SurveyFile {
@@ -20,6 +21,7 @@ export default function FileManagement() {
   const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ [key: string]: number }>({});
   const { documents, processDocument, deleteDocument } = useDocuments();
+  const { user } = useAuth();
   const [documentService] = useState(() => new DocumentService());
   const [serverStatus, setServerStatus] = useState<'checking' | 'online' | 'offline'>('checking');
   const [files, setFiles] = useState<SurveyFile[]>([
@@ -145,7 +147,7 @@ export default function FileManagement() {
         }, 300);
         
         // Process the document
-        await processDocument(file, selectedSurvey, selectedCategory);
+        await processDocument(file, selectedSurvey, selectedCategory, user?.id);
         
         // Complete progress
         clearInterval(progressInterval);
