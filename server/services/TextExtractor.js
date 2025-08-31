@@ -1,10 +1,29 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+import { JSDOM } from 'jsdom';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
 import fs from 'fs-extra';
 import { createWorker } from 'tesseract.js';
 import path from 'path';
 import { fileURLToPath } from 'url';
+
+// Set up JSDOM environment for PDF.js compatibility
+const dom = new JSDOM('<!DOCTYPE html><html><body></body></html>', {
+  url: 'http://localhost',
+  pretendToBeVisual: true,
+  resources: 'usable'
+});
+
+// Expose necessary browser globals to Node.js environment
+global.window = dom.window;
+global.document = dom.window.document;
+global.navigator = dom.window.navigator;
+global.DOMMatrix = dom.window.DOMMatrix || class DOMMatrix {
+  constructor() {
+    this.a = 1; this.b = 0; this.c = 0; this.d = 1; this.e = 0; this.f = 0;
+  }
+};
 
 // Configure PDF.js for Node.js environment
 const __filename = fileURLToPath(import.meta.url);
