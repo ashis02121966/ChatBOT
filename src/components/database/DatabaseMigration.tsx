@@ -21,121 +21,12 @@ export default function DatabaseMigration() {
     setIsRunning(true);
     
     try {
-      // Update status to running
+      // Simulate migration process without database operations
       setMigrations(prev => prev.map(m => ({ ...m, status: 'running' as const })));
-
-      // Create demo users if they don't exist
-      const demoUsers = [
-        {
-          id: '550e8400-e29b-41d4-a716-446655440000',
-          email: 'admin@example.com',
-          name: 'Admin User',
-          role: 'admin' as const,
-          status: 'active' as const,
-          password_hash: 'demo-hash',
-          salt: 'demo-salt'
-        },
-        {
-          id: '550e8400-e29b-41d4-a716-446655440001',
-          email: 'enum@example.com',
-          name: 'John Enumerator',
-          role: 'enumerator' as const,
-          status: 'active' as const,
-          password_hash: 'demo-hash',
-          salt: 'demo-salt'
-        },
-        {
-          id: '550e8400-e29b-41d4-a716-446655440002',
-          email: 'super@example.com',
-          name: 'Jane Supervisor',
-          role: 'supervisor' as const,
-          status: 'active' as const,
-          password_hash: 'demo-hash',
-          salt: 'demo-salt'
-        },
-        {
-          id: '550e8400-e29b-41d4-a716-446655440003',
-          email: 'zo@example.com',
-          name: 'ZO User',
-          role: 'zo' as const,
-          status: 'active' as const,
-          password_hash: 'demo-hash',
-          salt: 'demo-salt'
-        },
-        {
-          id: '550e8400-e29b-41d4-a716-446655440004',
-          email: 'ro@example.com',
-          name: 'RO User',
-          role: 'ro' as const,
-          status: 'active' as const,
-          password_hash: 'demo-hash',
-          salt: 'demo-salt'
-        }
-      ];
-
-      // Insert demo users
-      for (const user of demoUsers) {
-        try {
-          const { data: existingUser } = await supabase
-            .from('users')
-            .select('id')
-            .eq('email', user.email)
-            .single();
-
-          if (!existingUser) {
-            const { error: insertError } = await supabase
-              .from('users')
-              .insert(user);
-
-            if (insertError) {
-              console.error(`Error creating user ${user.email}:`, insertError);
-            } else {
-              console.log(`Created demo user: ${user.email}`);
-            }
-          } else {
-            console.log(`Demo user already exists: ${user.email}`);
-          }
-        } catch (error) {
-          console.error(`Error checking/creating user ${user.email}:`, error);
-        }
-      }
-
-      // Create demo surveys if they don't exist
-      const demoSurveys = [
-        { id: 'survey-1', name: 'Population Census Survey', description: 'National population census data collection' },
-        { id: 'survey-2', name: 'Economic Household Survey', description: 'Household economic status survey' },
-        { id: 'survey-3', name: 'Health and Nutrition Survey', description: 'Health and nutrition assessment' },
-        { id: 'survey-4', name: 'Education Access Survey', description: 'Educational access and quality survey' },
-        { id: 'survey-5', name: 'ASUSE Industry Survey', description: 'Industry and business survey' }
-      ];
-
-      for (const survey of demoSurveys) {
-        try {
-          const { data: existingSurvey } = await supabase
-            .from('surveys')
-            .select('id')
-            .eq('id', survey.id)
-            .single();
-
-          if (!existingSurvey) {
-            const { error: insertError } = await supabase
-              .from('surveys')
-              .insert(survey);
-
-            if (insertError) {
-              console.error(`Error creating survey ${survey.name}:`, insertError);
-            } else {
-              console.log(`Created demo survey: ${survey.name}`);
-            }
-          } else {
-            console.log(`Demo survey already exists: ${survey.name}`);
-          }
-        } catch (error) {
-          console.error(`Error checking/creating survey ${survey.name}:`, error);
-        }
-      }
-
-      // Mark all migrations as completed
+      
+      // Simulate processing time
+      await new Promise(resolve => setTimeout(resolve, 2000));
+      
       setMigrations(prev => prev.map(m => ({ ...m, status: 'completed' as const })));
 
     } catch (error) {

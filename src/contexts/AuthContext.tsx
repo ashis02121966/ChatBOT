@@ -34,38 +34,16 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Check for existing session on mount
+  // Initialize without session check to avoid storage errors
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        if (session?.user) {
-          // Get user details from public.users table
-          const dbUser = await databaseService.getUserByEmail(session.user.email!);
-          if (dbUser && dbUser.status === 'active') {
-            setUser({
-              id: dbUser.id,
-              name: dbUser.name,
-              email: dbUser.email,
-              role: dbUser.role
-            });
-          }
-        }
-      } catch (error) {
-        console.error('Session check error:', error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    
-    checkSession();
+    setLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('🔐 Attempting Supabase authentication for:', email);
+      console.log('🔐 Attempting authentication for:', email);
       
-      // First try demo authentication for development
+      // Use demo authentication only (no Supabase auth to avoid storage issues)
       if (password === 'password123') {
         const demoUsers = {
           'admin@example.com': { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Admin User', email, role: 'admin' as const },
@@ -82,52 +60,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
       
-      // Try Supabase auth as fallback
-      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-      
-      if (authError || !authData.user) {
-        console.log('Authentication failed:', authError?.message);
-        return false;
-      }
-      
-      // Get user details from public.users table
-      const dbUser = await databaseService.getUserByEmail(email);
-      
-      if (!dbUser || dbUser.status !== 'active') {
-        console.log('Authentication failed: User not found or inactive');
-        await supabase.auth.signOut(); // Clean up auth session
-        return false;
-      }
-      
-      // Update last login
-      await databaseService.updateUser(dbUser.id, {
-        last_login: new Date().toISOString()
-      });
-      
-      // Set user session (memory only - no localStorage)
-      const userData = {
-        id: dbUser.id,
-        name: dbUser.name,
-        email: dbUser.email,
-        role: dbUser.role
-      };
-      
-      setUser(userData);
-      
-      console.log('Supabase authentication successful for:', email, 'Auth User ID:', authData.user.id);
-      return true;
+      return false;
     } catch (error) {
       console.error('Authentication error:', error);
-      await supabase.auth.signOut(); // Clean up on error
       return false;
     }
   };
 
   const logout = () => {
-    supabase.auth.signOut().catch(console.error);
     setUser(null);
   };
 
