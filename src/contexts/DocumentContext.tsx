@@ -347,9 +347,8 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         character_count: processedDoc.metadata?.characterCount || 0,
         chunk_count: processedDoc.chunks?.length || 0,
         image_count: processedDoc.images?.length || 0,
-        user_id: userId || null
-        is_admin_generated: false,
-        user_id: userId
+        user_id: userId || null,
+        is_admin_generated: false
       };
       
       console.log('Creating document in database:', documentData);
