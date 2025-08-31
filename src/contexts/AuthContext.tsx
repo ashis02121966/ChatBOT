@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { databaseService } from '../services/DatabaseService';
+import { supabase } from '../lib/supabase';
 
 export interface User {
   id: string;
@@ -73,25 +74,25 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
-      console.log('🔐 Attempting database authentication for:', email);
+      console.log('🔐 Attempting Supabase authentication for:', email);
       
-      // Get user from database
+      // Use Supabase auth for login
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+      
+      if (authError || !authData.user) {
+        console.log('Authentication failed:', authError?.message);
+        return false;
+      }
+      
+      // Get user details from public.users table
       const dbUser = await databaseService.getUserByEmail(email);
       
-      if (!dbUser) {
-        console.log('Authentication failed: User not found in database');
-        return false;
-      }
-      
-      if (dbUser.status !== 'active') {
-        console.log('Authentication failed: User account is inactive');
-        return false;
-      }
-      
-      // Verify password using database service
-      const isValidPassword = await databaseService.verifyUserPassword(email, password);
-      if (!isValidPassword) {
-        console.log('Authentication failed: Invalid password');
+      if (!dbUser || dbUser.status !== 'active') {
+        console.log('Authentication failed: User not found or inactive');
+        await supabase.auth.signOut(); // Clean up auth session
         return false;
       }
       
@@ -100,9 +101,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
         last_login: new Date().toISOString()
       });
       
-      // Set user session with database user data
+      // Set user session with auth user data
       const userData = {
-        id: dbUser.id,
+        id: authData.user.id,
         name: dbUser.name,
         email: dbUser.email,
         role: dbUser.role
@@ -111,15 +112,19 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setUser(userData);
       localStorage.setItem('user', JSON.stringify(userData));
       
-      console.log('Database authentication successful for:', email, 'Database User ID:', dbUser.id);
+      console.log('Supabase authentication successful for:', email, 'Auth User ID:', authData.user.id);
       return true;
     } catch (error) {
       console.error('Authentication error:', error);
+      await supabase.auth.signOut(); // Clean up on error
       return false;
     }
   };
 
   const logout = () => {
+    // Sign out from Supabase auth
+    supabase.auth.signOut();
+    
     setUser(null);
     localStorage.removeItem('user');
     // Clear user-specific chat sessions
