@@ -7,6 +7,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { DocumentProcessor } from './services/DocumentProcessor.js';
+import { databaseService } from './services/DatabaseService.js';
 
 dotenv.config();
 

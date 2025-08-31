@@ -5,9 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\"",
+    "dev": "concurrently \"npm run dev:client\" \"npm run dev:server\" --kill-others-on-fail",
     "dev:client": "vite",
-    "dev:server": "cd server && npm run dev",
+    "dev:server": "cd server && node index.js",
     "lint": "eslint .",
     "preview": "vite preview"
   },
