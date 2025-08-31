@@ -11,6 +11,13 @@ export class DocumentProcessor {
     this.chunkProcessor = new ChunkProcessor();
   }
 
+  async init() {
+    console.log('🔧 Initializing document processor components...');
+    await this.textExtractor.init();
+    await this.imageExtractor.init();
+    console.log('✅ Document processor components initialized');
+  }
+
   async processDocument(file, surveyId) {
     console.log(`📄 Starting comprehensive document processing for: ${file.originalname}`);
     console.log(`📋 File details: ${file.mimetype}, ${this.formatFileSize(file.size)}`);

@@ -192,9 +192,15 @@ export class DatabaseService {
 
   // Document CRUD operations
   async createDocument(documentData: Tables['documents']['Insert']): Promise<Document | null> {
+    // Ensure we have a valid UUID for the document ID
+    const validatedData = {
+      ...documentData,
+      id: this.validateAndGenerateUUID(documentData.id)
+    };
+
     const { data, error } = await supabase
       .from('documents')
-      .insert(documentData)
+      .insert(validatedData)
       .select()
       .single();
 
@@ -273,9 +279,15 @@ export class DatabaseService {
 
   // Document Chunks CRUD operations
   async createDocumentChunk(chunkData: Tables['document_chunks']['Insert']): Promise<DocumentChunk | null> {
+    // Ensure we have a valid UUID for the chunk ID
+    const validatedData = {
+      ...chunkData,
+      id: this.validateAndGenerateUUID(chunkData.id)
+    };
+
     const { data, error } = await supabase
       .from('document_chunks')
-      .insert(chunkData)
+      .insert(validatedData)
       .select()
       .single();
 
@@ -288,9 +300,15 @@ export class DatabaseService {
   }
 
   async createDocumentChunks(chunksData: Tables['document_chunks']['Insert'][]): Promise<DocumentChunk[]> {
+    // Ensure all chunks have valid UUIDs
+    const validatedChunks = chunksData.map(chunk => ({
+      ...chunk,
+      id: this.validateAndGenerateUUID(chunk.id)
+    }));
+
     const { data, error } = await supabase
       .from('document_chunks')
-      .insert(chunksData)
+      .insert(validatedChunks)
       .select();
 
     if (error) {
@@ -302,9 +320,15 @@ export class DatabaseService {
   }
 
   async createDocumentImages(imagesData: any[]): Promise<any[]> {
+    // Ensure all images have valid UUIDs
+    const validatedImages = imagesData.map(image => ({
+      ...image,
+      id: this.validateAndGenerateUUID(image.id)
+    }));
+
     const { data, error } = await supabase
       .from('document_images')
-      .insert(imagesData)
+      .insert(validatedImages)
       .select();
 
     if (error) {

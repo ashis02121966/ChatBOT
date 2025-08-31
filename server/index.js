@@ -7,7 +7,6 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { v4 as uuidv4 } from 'uuid';
 import { DocumentProcessor } from './services/DocumentProcessor.js';
-import { databaseService } from './services/DatabaseService.js';
 
 dotenv.config();
 
@@ -63,17 +62,11 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Initialize server asynchronously
 async function initializeServer() {
   try {
-    // Initialize document processor
+    // Initialize document processor without database dependency
+    console.log('🚀 Initializing document processor...');
     const documentProcessor = new DocumentProcessor();
-    
-    // Test database connection
-    console.log('🔍 Testing database connection and table access...');
-    const dbConnected = await databaseService.testConnection();
-    if (!dbConnected) {
-      console.warn('⚠️ Database connection failed - documents will not be saved to database');
-    } else {
-      console.log('✅ Database connection and table access successful');
-    }
+    await documentProcessor.init();
+    console.log('✅ Document processor initialized successfully');
 
     // Create uploads directory
     const uploadsDir = path.join(__dirname, 'uploads');
