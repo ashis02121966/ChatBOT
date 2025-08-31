@@ -37,8 +37,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Check for existing user session from localStorage
   useEffect(() => {
     const checkStoredSession = async () => {
+      setLoading(true);
       try {
-        const storedUser = localStorage.getItem('user');
+        let storedUser = null;
+        try {
+          storedUser = localStorage.getItem('user');
+        } catch (storageError) {
+          console.warn('localStorage access blocked, skipping session restore');
+          setLoading(false);
+          return;
+        }
+        
         if (storedUser) {
           const userData = JSON.parse(storedUser);
           
@@ -58,12 +67,20 @@ export function AuthProvider({ children }: AuthProviderProps) {
             });
           } else {
             // User no longer exists or is inactive, clear session
-            localStorage.removeItem('user');
+            try {
+              localStorage.removeItem('user');
+            } catch (storageError) {
+              console.warn('localStorage remove blocked');
+            }
           }
         }
       } catch (error) {
         console.error('Session check error:', error);
-        localStorage.removeItem('user');
+        try {
+          localStorage.removeItem('user');
+        } catch (storageError) {
+          console.warn('localStorage remove blocked');
+        }
       } finally {
         setLoading(false);
       }
@@ -110,7 +127,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
       
       setUser(userData);
-      localStorage.setItem('user', JSON.stringify(userData));
+      try {
+        localStorage.setItem('user', JSON.stringify(userData));
+      } catch (storageError) {
+        console.warn('localStorage write blocked, session will not persist');
+      }
       
       console.log('Supabase authentication successful for:', email, 'Auth User ID:', authData.user.id);
       return true;
@@ -126,13 +147,21 @@ export function AuthProvider({ children }: AuthProviderProps) {
     supabase.auth.signOut();
     
     setUser(null);
-    localStorage.removeItem('user');
+    try {
+      localStorage.removeItem('user');
+    } catch (storageError) {
+      console.warn('localStorage remove blocked');
+    }
     // Clear user-specific chat sessions
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('chatSessions_')) {
-        localStorage.removeItem(key);
-      }
-    });
+    try {
+      Object.keys(localStorage).forEach(key => {
+        if (key.startsWith('chatSessions_')) {
+          localStorage.removeItem(key);
+        }
+      });
+    } catch (storageError) {
+      console.warn('localStorage cleanup blocked');
+    }
   };
 
   return (
