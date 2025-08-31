@@ -9,11 +9,23 @@ export class TextExtractor {
   constructor() {
     this.ocrWorker = null;
     this.tempDir = path.join(process.cwd(), 'temp');
-    this.initializeTempDir();
+  }
+
+  async init() {
+    try {
+      await this.initializeTempDir();
+      console.log('✅ TextExtractor initialized');
+    } catch (error) {
+      console.warn('⚠️ TextExtractor initialization warning:', error.message);
+    }
   }
 
   async initializeTempDir() {
-    await fs.ensureDir(this.tempDir);
+    try {
+      await fs.ensureDir(this.tempDir);
+    } catch (error) {
+      console.warn('Could not create temp directory:', error.message);
+    }
   }
 
   async extractText(file) {
@@ -36,25 +48,55 @@ export class TextExtractor {
           return await this.extractPlainTextComprehensive(file);
         
         default:
-          throw new Error(`Unsupported file type: ${file.mimetype}`);
+          console.warn(`⚠️ Unsupported file type: ${file.mimetype}, using basic extraction`);
+          return this.createBasicFallbackContent(file);
       }
     } catch (error) {
       console.error(`Comprehensive text extraction failed for ${file.originalname}:`, error);
-      throw error;
+      console.log('🔄 Using fallback content generation');
+      return this.createBasicFallbackContent(file);
     }
+  }
+
+  createBasicFallbackContent(file) {
+    return `Document: ${file.originalname}
+File Type: ${file.mimetype}
+File Size: ${this.formatFileSize(file.size)}
+Upload Date: ${new Date().toISOString()}
+
+This document has been uploaded to the system but requires manual processing or alternative extraction methods for full content analysis. The file is available and can be referenced in conversations.`;
+  }
+
+  formatFileSize(bytes) {
+    const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+    if (bytes === 0) return '0 Bytes';
+    const i = Math.floor(Math.log(bytes) / Math.log(1024));
+    return Math.round(bytes / Math.pow(1024, i) * 100) / 100 + ' ' + sizes[i];
   }
 
   async extractPDFTextComprehensive(file) {
     try {
       console.log('Starting comprehensive PDF text extraction...');
-      const buffer = await fs.readFile(file.path);
+      let buffer;
+      try {
+        buffer = await fs.readFile(file.path);
+      } catch (readError) {
+        console.error('Failed to read PDF file:', readError.message);
+        return this.createBasicFallbackContent(file);
+      }
       
       // Primary extraction with pdf-parse
-      const pdfData = await pdf(buffer, {
-        normalizeWhitespace: false,
-        disableCombineTextItems: false,
-        max: 0 // Extract all pages
-      });
+      let pdfData;
+      try {
+        pdfData = await pdf(buffer, {
+          normalizeWhitespace: false,
+          disableCombineTextItems: false,
+          max: 0 // Extract all pages
+        });
+      } catch (pdfError) {
+        console.error('PDF parsing failed:', pdfError.message);
+        return this.createBasicFallbackContent(file);
+      }
       
       let extractedText = pdfData.text.trim();
       console.log(`PDF primary extraction: ${extractedText.length} characters from ${pdfData.numpages} pages`);

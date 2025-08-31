@@ -5,11 +5,23 @@ import { v4 as uuidv4 } from 'uuid';
 export class ImageExtractor {
   constructor() {
     this.tempDir = path.join(process.cwd(), 'temp');
-    this.initializeTempDir();
+  }
+
+  async init() {
+    try {
+      await this.initializeTempDir();
+      console.log('✅ ImageExtractor initialized');
+    } catch (error) {
+      console.warn('⚠️ ImageExtractor initialization warning:', error.message);
+    }
   }
 
   async initializeTempDir() {
-    await fs.ensureDir(this.tempDir);
+    try {
+      await fs.ensureDir(this.tempDir);
+    } catch (error) {
+      console.warn('Could not create temp directory for images:', error.message);
+    }
   }
 
   async extractImages(file) {
