@@ -329,8 +329,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     processedDoc: any, 
     surveyId: string, 
     category: string = 'General Questions',
-    userId?: string,
-    userId: string
+    userId?: string
   ) => {
     try {
       // Create document record
