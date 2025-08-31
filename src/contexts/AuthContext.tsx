@@ -32,18 +32,57 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(false); // Start with false to avoid loading state
+  const [loading, setLoading] = useState(true);
 
-  // Remove localStorage dependency completely - start fresh each time
+  // Check for existing session on mount
   useEffect(() => {
-    setLoading(false);
+    const checkSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          // Get user details from public.users table
+          const dbUser = await databaseService.getUserByEmail(session.user.email!);
+          if (dbUser && dbUser.status === 'active') {
+            setUser({
+              id: dbUser.id,
+              name: dbUser.name,
+              email: dbUser.email,
+              role: dbUser.role
+            });
+          }
+        }
+      } catch (error) {
+        console.error('Session check error:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    checkSession();
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
     try {
       console.log('🔐 Attempting Supabase authentication for:', email);
       
-      // Use Supabase auth for login
+      // First try demo authentication for development
+      if (password === 'password123') {
+        const demoUsers = {
+          'admin@example.com': { id: 'admin-user-id', name: 'Admin User', email, role: 'admin' as const },
+          'enum@example.com': { id: 'enum-user-id', name: 'John Enumerator', email, role: 'enumerator' as const },
+          'super@example.com': { id: 'super-user-id', name: 'Jane Supervisor', email, role: 'supervisor' as const },
+          'zo@example.com': { id: 'zo-user-id', name: 'ZO User', email, role: 'zo' as const },
+          'ro@example.com': { id: 'ro-user-id', name: 'RO User', email, role: 'ro' as const },
+        };
+        
+        const userData = demoUsers[email as keyof typeof demoUsers];
+        if (userData) {
+          setUser(userData);
+          return true;
+        }
+      }
+      
+      // Try Supabase auth as fallback
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password
@@ -88,8 +127,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const logout = () => {
-    // Sign out from Supabase auth
-    supabase.auth.signOut();
+    supabase.auth.signOut().catch(console.error);
     setUser(null);
   };
 

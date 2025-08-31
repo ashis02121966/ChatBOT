@@ -1,26 +1,29 @@
 import React, { useState } from 'react';
 import { LogIn, Bot } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
 
-interface LoginProps {
-  onLogin: (email: string, password: string) => boolean;
-}
-
-export default function Login({ onLogin }: LoginProps) {
+export default function Login() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const { login } = useAuth();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
 
-    const success = onLogin(email, password);
-    if (!success) {
-      setError('Invalid credentials');
+    try {
+      const success = await login(email, password);
+      if (!success) {
+        setError('Invalid credentials');
+      }
+    } catch (err) {
+      setError('Login failed. Please try again.');
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const demoCredentials = [
