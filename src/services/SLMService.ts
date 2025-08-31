@@ -1,12 +1,9 @@
-import { pipeline, Pipeline, env } from '@xenova/transformers';
-
-// Configure transformers environment
-env.allowRemoteModels = true;
-env.workerSrc = '/node_modules/@xenova/transformers/dist/worker.min.js';
+// Transformers disabled to prevent WebAssembly memory errors
+// import { pipeline, Pipeline, env } from '@xenova/transformers';
 
 export class SLMService {
-  private textGenerator: Pipeline | null = null;
-  private questionAnswerer: Pipeline | null = null;
+  private textGenerator: any = null;
+  private questionAnswerer: any = null;
   private isInitialized = false;
   private initializationPromise: Promise<void>;
   private initializationError: string | null = null;
@@ -17,15 +14,13 @@ export class SLMService {
 
   constructor() {
     this.knowledgeBase = this.initializeKnowledgeBase();
-    // Disable model initialization to prevent WebAssembly memory errors
     this.initializationPromise = Promise.resolve();
-    this.isInitialized = true; // Use knowledge-based responses only
-    console.log('SLM Service initialized in knowledge-only mode (models disabled to prevent memory errors)');
+    this.isInitialized = true;
+    console.log('SLM Service initialized in knowledge-only mode (WebAssembly models disabled)');
   }
 
   private async initialize() {
-    // Models disabled to prevent WebAssembly memory errors
-    console.log('SLM models disabled to prevent memory issues');
+    // WebAssembly models completely disabled to prevent memory errors
     this.isInitialized = true;
   }
 
