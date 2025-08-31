@@ -103,7 +103,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Set user session with auth user data
       const userData = {
-        id: authData.user.id,
+        id: dbUser.id,
         name: dbUser.name,
         email: dbUser.email,
         role: dbUser.role

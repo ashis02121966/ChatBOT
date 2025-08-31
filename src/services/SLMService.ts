@@ -17,162 +17,16 @@ export class SLMService {
 
   constructor() {
     this.knowledgeBase = this.initializeKnowledgeBase();
-    this.initializationPromise = this.initialize();
+    // Disable model initialization to prevent WebAssembly memory errors
+    this.initializationPromise = Promise.resolve();
+    this.isInitialized = true; // Use knowledge-based responses only
+    console.log('SLM Service initialized in knowledge-only mode (models disabled to prevent memory errors)');
   }
 
   private async initialize() {
-    try {
-      console.log('Initializing SLM models...');
-      
-      // Set a longer timeout for model loading (5 minutes)
-      const timeout = new Promise((_, reject) => 
-        setTimeout(() => reject(new Error('Model loading timeout')), 300000)
-      );
-
-      // Initialize question-answering model first (more reliable)
-      try {
-        console.log('Attempting to load question-answering model...');
-        this.questionAnswerer = await Promise.race([
-          pipeline(
-            'question-answering',
-            'Xenova/distilbert-base-uncased-distilled-squad',
-            { 
-              revision: 'main',
-              quantized: true,
-              cache_dir: './.cache/transformers',
-              progress_callback: (progress) => {
-                if (progress.status === 'downloading') {
-                  console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
-                } else if (progress.status === 'loading') {
-                  console.log('Loading QA model into memory...');
-                }
-              }
-            }
-          ),
-          timeout
-        ]);
-        console.log('Question-answering model loaded successfully');
-      } catch (qaError) {
-        console.warn('Failed to load question-answering model:', qaError);
-        if (qaError.message.includes('<!doctype') || 
-            qaError.message.includes('Unexpected token') ||
-            qaError.message.includes('is not valid JSON') ||
-            qaError.message.includes('NetworkError') ||
-            qaError.message.includes('Failed to fetch')) {
-          this.networkError = true;
-          this.initializationError = 'Network error: Unable to download AI models. This may be due to network restrictions or server issues.';
-        } else {
-          this.initializationError = `QA model failed: ${qaError.message}`;
-        }
-      }
-
-      // Try a smaller, more reliable text generation model
-      try {
-        console.log('Attempting to load text generation model...');
-        this.textGenerator = await Promise.race([
-          pipeline(
-            'question-answering',
-            'Xenova/distilbert-base-uncased-distilled-squad',
-            { 
-              revision: 'main',
-              quantized: true,
-              cache_dir: './.cache/transformers',
-              progress_callback: (progress) => {
-                if (progress.status === 'downloading') {
-                  console.log(`Downloading QA model: ${Math.round(progress.progress || 0)}%`);
-                } else if (progress.status === 'loading') {
-                  console.log('Loading QA model into memory...');
-                }
-              }
-            }
-          ),
-          timeout
-        ]);
-        console.log('Question-answering model loaded successfully');
-      } catch (qaError) {
-        console.warn('Failed to load question-answering model:', qaError);
-        if (qaError.message.includes('<!doctype') || 
-            qaError.message.includes('Unexpected token') ||
-            qaError.message.includes('is not valid JSON') ||
-            qaError.message.includes('NetworkError') ||
-            qaError.message.includes('Failed to fetch')) {
-          this.networkError = true;
-          this.initializationError = 'Network error: Unable to download AI models. This may be due to network restrictions or server issues.';
-        } else {
-          this.initializationError = `QA model failed: ${qaError.message}`;
-        }
-      }
-
-      // Try a smaller, more reliable text generation model
-      try {
-        console.log('Attempting to load text generation model...');
-        this.textGenerator = await Promise.race([
-          pipeline(
-            'text-generation',
-            'Xenova/gpt2',
-            { 
-              revision: 'main',
-              quantized: true,
-              cache_dir: './.cache/transformers',
-              progress_callback: (progress) => {
-                if (progress.status === 'downloading') {
-                  console.log(`Downloading text model: ${Math.round(progress.progress || 0)}%`);
-                } else if (progress.status === 'loading') {
-                  console.log('Loading text generation model into memory...');
-                }
-              }
-            }
-          ),
-          timeout
-        ]);
-        console.log('Text generation model loaded successfully');
-      } catch (tgError) {
-        console.warn('Failed to load text generation model:', tgError);
-        if (tgError.message.includes('<!doctype') || 
-            tgError.message.includes('Unexpected token') ||
-            tgError.message.includes('is not valid JSON') ||
-            tgError.message.includes('NetworkError') ||
-            tgError.message.includes('Failed to fetch')) {
-          this.networkError = true;
-          if (!this.initializationError) {
-            this.initializationError = 'Network error: Unable to download AI models. This may be due to network restrictions or server issues.';
-          }
-        } else {
-          if (this.initializationError) {
-            this.initializationError += ` | Text model failed: ${tgError.message}`;
-          } else {
-            this.initializationError = `Text model failed: ${tgError.message}`;
-          }
-        }
-      }
-
-      // Consider initialized if at least one model loaded
-      this.isInitialized = this.questionAnswerer !== null || this.textGenerator !== null;
-      
-      if (!this.isInitialized) {
-        console.warn(`All models failed to load. ${this.initializationError}`);
-        console.log('SLM will use intelligent fallback responses based on knowledge base');
-      }
-      
-      if (this.isInitialized) {
-        console.log('SLM models initialized successfully');
-      } else {
-        console.log('SLM models unavailable - using intelligent knowledge-based responses');
-      }
-    } catch (error) {
-      console.error('Failed to initialize SLM models:', error);
-      this.isInitialized = false;
-      if (error.message.includes('<!doctype') || 
-          error.message.includes('Unexpected token') ||
-          error.message.includes('is not valid JSON') ||
-          error.message.includes('NetworkError') ||
-          error.message.includes('Failed to fetch')) {
-        this.networkError = true;
-        this.initializationError = 'Network error: Unable to download AI models. The system will use knowledge-based responses.';
-      } else {
-        this.initializationError = error.message;
-      }
-    }
+    // Models disabled to prevent WebAssembly memory errors
+    console.log('SLM models disabled to prevent memory issues');
+    this.isInitialized = true;
   }
 
   // Method to update SLM with uploaded document content

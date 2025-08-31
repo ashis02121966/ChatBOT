@@ -102,8 +102,26 @@ export function ChatProvider({ children }: ChatProviderProps) {
   // Load global unanswered queries on component mount (independent of user)
   useEffect(() => {
     // Load global unanswered queries (shared across all users for admin access)
+    const safeLocalStorage = {
+      getItem: (key: string): string | null => {
+        try {
+          return localStorage.getItem(key);
+        } catch (error) {
+          console.warn('localStorage access blocked, using memory storage');
+          return null;
+        }
+      },
+      setItem: (key: string, value: string): void => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          console.warn('localStorage write blocked, data will not persist');
+        }
+      }
+    };
+
     try {
-      const savedQueries = localStorage.getItem('globalUnansweredQueries');
+      const savedQueries = safeLocalStorage.getItem('globalUnansweredQueries');
       if (savedQueries) {
         try {
           const queries = JSON.parse(savedQueries);
@@ -124,10 +142,28 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   // Handle user-specific sessions when user changes
   useEffect(() => {
+    const safeLocalStorage = {
+      getItem: (key: string): string | null => {
+        try {
+          return localStorage.getItem(key);
+        } catch (error) {
+          console.warn('localStorage access blocked, using memory storage');
+          return null;
+        }
+      },
+      removeItem: (key: string): void => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          console.warn('localStorage remove blocked');
+        }
+      }
+    };
+
     if (user) {
       // Load user's sessions or initialize empty
       try {
-        const savedSessions = localStorage.getItem(`chatSessions_${user.id}`);
+        const savedSessions = safeLocalStorage.getItem(`chatSessions_${user.id}`);
         if (savedSessions) {
           try {
             const sessions = JSON.parse(savedSessions);
@@ -150,9 +186,19 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   // Save user sessions to localStorage when they change
   useEffect(() => {
+    const safeLocalStorage = {
+      setItem: (key: string, value: string): void => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          console.warn('localStorage write blocked, data will not persist');
+        }
+      }
+    };
+
     if (user && userSessions[user.id]) {
       try {
-        localStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
+        safeLocalStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
       } catch (error) {
         console.warn('localStorage not available for saving user sessions');
       }
@@ -161,8 +207,18 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   // Save global queries to localStorage when they change (independent of user)
   useEffect(() => {
+    const safeLocalStorage = {
+      setItem: (key: string, value: string): void => {
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          console.warn('localStorage write blocked, data will not persist');
+        }
+      }
+    };
+
     try {
-      localStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
+      safeLocalStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
       console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
     } catch (error) {
       console.warn('localStorage not available for saving global queries');
@@ -1027,9 +1083,19 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   const clearUserSessions = () => {
+    const safeLocalStorage = {
+      removeItem: (key: string): void => {
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          console.warn('localStorage remove blocked');
+        }
+      }
+    };
+
     if (user) {
       try {
-        localStorage.removeItem(`chatSessions_${user.id}`);
+        safeLocalStorage.removeItem(`chatSessions_${user.id}`);
       } catch (error) {
         console.warn('localStorage not available for clearing sessions');
       }
