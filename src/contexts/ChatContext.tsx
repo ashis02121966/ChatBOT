@@ -99,131 +99,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
   const { searchDocuments, searchImages, updateChunkFeedback, updateAdminKnowledgeDocument } = useDocuments();
   const { surveys } = useSurveys();
 
-  // Load global unanswered queries on component mount (independent of user)
+  // Use memory-only storage - no localStorage dependency
+  // Data will be lost on page refresh but app will work with tracking prevention
+  
   useEffect(() => {
-    // Load global unanswered queries (shared across all users for admin access)
-    const safeLocalStorage = {
-      getItem: (key: string): string | null => {
-        try {
-          return localStorage.getItem(key);
-        } catch (error) {
-          console.warn('localStorage access blocked, using memory storage');
-          return null;
-        }
-      },
-      setItem: (key: string, value: string): void => {
-        try {
-          localStorage.setItem(key, value);
-        } catch (error) {
-          console.warn('localStorage write blocked, data will not persist');
-        }
-      }
-    };
-
-    try {
-      const savedQueries = safeLocalStorage.getItem('globalUnansweredQueries');
-      if (savedQueries) {
-        try {
-          const queries = JSON.parse(savedQueries);
-          setUnansweredQueries(queries);
-          console.log(`Loaded ${queries.length} global unanswered queries from localStorage`);
-        } catch (error) {
-          console.error('Error loading global queries:', error);
-          setUnansweredQueries([]);
-        }
-      } else {
-        setUnansweredQueries([]);
-      }
-    } catch (error) {
-      console.warn('localStorage not available, using memory storage only');
-      setUnansweredQueries([]);
-    }
-  }, []); // Empty dependency array - only run once on mount
-
-  // Handle user-specific sessions when user changes
-  useEffect(() => {
-    const safeLocalStorage = {
-      getItem: (key: string): string | null => {
-        try {
-          return localStorage.getItem(key);
-        } catch (error) {
-          console.warn('localStorage access blocked, using memory storage');
-          return null;
-        }
-      },
-      removeItem: (key: string): void => {
-        try {
-          localStorage.removeItem(key);
-        } catch (error) {
-          console.warn('localStorage remove blocked');
-        }
-      }
-    };
-
     if (user) {
-      // Load user's sessions or initialize empty
-      try {
-        const savedSessions = safeLocalStorage.getItem(`chatSessions_${user.id}`);
-        if (savedSessions) {
-          try {
-            const sessions = JSON.parse(savedSessions);
-            setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
-          } catch (error) {
-            console.error('Error loading user sessions:', error);
-          }
-        }
-      } catch (error) {
-        console.warn('localStorage not available for user sessions');
-      }
-      
-      // Clear current session when switching users
-      setCurrentSession(null);
-    } else if (user === null) {
-      // User logged out, clear only user-specific data (keep global unanswered queries)
       setCurrentSession(null);
     }
   }, [user]);
-
-  // Save user sessions to localStorage when they change
-  useEffect(() => {
-    const safeLocalStorage = {
-      setItem: (key: string, value: string): void => {
-        try {
-          localStorage.setItem(key, value);
-        } catch (error) {
-          console.warn('localStorage write blocked, data will not persist');
-        }
-      }
-    };
-
-    if (user && userSessions[user.id]) {
-      try {
-        safeLocalStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
-      } catch (error) {
-        console.warn('localStorage not available for saving user sessions');
-      }
-    }
-  }, [userSessions, user?.id]);
-
-  // Save global queries to localStorage when they change (independent of user)
-  useEffect(() => {
-    const safeLocalStorage = {
-      setItem: (key: string, value: string): void => {
-        try {
-          localStorage.setItem(key, value);
-        } catch (error) {
-          console.warn('localStorage write blocked, data will not persist');
-        }
-      }
-    };
-
-    try {
-      safeLocalStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
-      console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
-    } catch (error) {
-      console.warn('localStorage not available for saving global queries');
-    }
-  }, [unansweredQueries]); // Removed user?.id dependency
 
   const createSession = async (surveyId: string, category?: string) => {
     if (!user) return;
@@ -1083,25 +966,10 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   const clearUserSessions = () => {
-    const safeLocalStorage = {
-      removeItem: (key: string): void => {
-        try {
-          localStorage.removeItem(key);
-        } catch (error) {
-          console.warn('localStorage remove blocked');
-        }
-      }
-    };
-
     if (user) {
-      try {
-        safeLocalStorage.removeItem(`chatSessions_${user.id}`);
-      } catch (error) {
-        console.warn('localStorage not available for clearing sessions');
-      }
       setUserSessions(prev => ({ ...prev, [user.id]: [] }));
       setCurrentSession(null);
-      console.log(`Cleared user sessions for user ${user.id}, but kept global unanswered queries`);
+      console.log(`Cleared user sessions for user ${user.id}`);
     }
   };
 

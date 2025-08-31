@@ -72,59 +72,8 @@ interface DocumentProviderProps {
 export function DocumentProvider({ children }: DocumentProviderProps) {
   const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
 
-  // Safe localStorage access with fallback
-  const safeLocalStorage = {
-    getItem: (key: string): string | null => {
-      try {
-        return localStorage.getItem(key);
-      } catch (error) {
-        console.warn('localStorage access blocked, using memory storage');
-        return null;
-      }
-    },
-    setItem: (key: string, value: string): void => {
-      try {
-        localStorage.setItem(key, value);
-      } catch (error) {
-        console.warn('localStorage write blocked, data will not persist');
-      }
-    },
-    removeItem: (key: string): void => {
-      try {
-        localStorage.removeItem(key);
-      } catch (error) {
-        console.warn('localStorage remove blocked');
-      }
-    }
-  };
-
-  // Load documents from localStorage on mount
-  useEffect(() => {
-    const loadDocuments = () => {
-      try {
-        const stored = safeLocalStorage.getItem('processedDocuments');
-        if (stored) {
-          const parsedDocs = JSON.parse(stored);
-          setDocuments(parsedDocs);
-          console.log(`Loaded ${parsedDocs.length} documents from storage`);
-        }
-      } catch (error) {
-        console.warn('Failed to load documents from storage:', error);
-        setDocuments([]);
-      }
-    };
-
-    loadDocuments();
-  }, []);
-
-  // Save documents to localStorage when they change
-  useEffect(() => {
-    try {
-      safeLocalStorage.setItem('processedDocuments', JSON.stringify(documents));
-    } catch (error) {
-      console.warn('Failed to save documents to storage:', error);
-    }
-  }, [documents]);
+  // Use memory-only storage - no localStorage dependency
+  // Documents will be lost on page refresh but app will work with tracking prevention
 
   const processDocument = async (
     file: File,

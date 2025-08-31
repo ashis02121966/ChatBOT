@@ -32,61 +32,11 @@ interface AuthProviderProps {
 
 export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false); // Start with false to avoid loading state
 
-  // Check for existing user session from localStorage
+  // Remove localStorage dependency completely - start fresh each time
   useEffect(() => {
-    const checkStoredSession = async () => {
-      setLoading(true);
-      try {
-        let storedUser = null;
-        try {
-          storedUser = localStorage.getItem('user');
-        } catch (storageError) {
-          console.warn('localStorage access blocked, skipping session restore');
-          setLoading(false);
-          return;
-        }
-        
-        if (storedUser) {
-          const userData = JSON.parse(storedUser);
-          
-          // Verify user still exists and is active in database
-          const dbUser = await databaseService.getUser(userData.id);
-          if (dbUser && dbUser.status === 'active') {
-            setUser({
-              id: dbUser.id,
-              name: dbUser.name,
-              email: dbUser.email,
-              role: dbUser.role
-            });
-            
-            // Update last login
-            await databaseService.updateUser(dbUser.id, {
-              last_login: new Date().toISOString()
-            });
-          } else {
-            // User no longer exists or is inactive, clear session
-            try {
-              localStorage.removeItem('user');
-            } catch (storageError) {
-              console.warn('localStorage remove blocked');
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Session check error:', error);
-        try {
-          localStorage.removeItem('user');
-        } catch (storageError) {
-          console.warn('localStorage remove blocked');
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    checkStoredSession();
+    setLoading(false);
   }, []);
 
   const login = async (email: string, password: string): Promise<boolean> => {
@@ -118,7 +68,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         last_login: new Date().toISOString()
       });
       
-      // Set user session with auth user data
+      // Set user session (memory only - no localStorage)
       const userData = {
         id: dbUser.id,
         name: dbUser.name,
@@ -127,11 +77,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       };
       
       setUser(userData);
-      try {
-        localStorage.setItem('user', JSON.stringify(userData));
-      } catch (storageError) {
-        console.warn('localStorage write blocked, session will not persist');
-      }
       
       console.log('Supabase authentication successful for:', email, 'Auth User ID:', authData.user.id);
       return true;
@@ -145,23 +90,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const logout = () => {
     // Sign out from Supabase auth
     supabase.auth.signOut();
-    
     setUser(null);
-    try {
-      localStorage.removeItem('user');
-    } catch (storageError) {
-      console.warn('localStorage remove blocked');
-    }
-    // Clear user-specific chat sessions
-    try {
-      Object.keys(localStorage).forEach(key => {
-        if (key.startsWith('chatSessions_')) {
-          localStorage.removeItem(key);
-        }
-      });
-    } catch (storageError) {
-      console.warn('localStorage cleanup blocked');
-    }
   };
 
   return (
