@@ -1,9 +1,17 @@
-import * as pdfjsLib from 'pdfjs-dist';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
 import fs from 'fs-extra';
 import { createWorker } from 'tesseract.js';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+// Configure PDF.js for Node.js environment
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Set worker source for Node.js
+pdfjsLib.GlobalWorkerOptions.workerSrc = path.join(__dirname, '../node_modules/pdfjs-dist/legacy/build/pdf.worker.js');
 
 export class TextExtractor {
   constructor() {
