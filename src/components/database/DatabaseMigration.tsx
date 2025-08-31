@@ -27,7 +27,7 @@ export default function DatabaseMigration() {
       // Create demo users if they don't exist
       const demoUsers = [
         {
-          id: 'admin-user-id',
+          id: '550e8400-e29b-41d4-a716-446655440000',
           email: 'admin@example.com',
           name: 'Admin User',
           role: 'admin' as const,
@@ -36,7 +36,7 @@ export default function DatabaseMigration() {
           salt: 'demo-salt'
         },
         {
-          id: 'enum-user-id',
+          id: '550e8400-e29b-41d4-a716-446655440001',
           email: 'enum@example.com',
           name: 'John Enumerator',
           role: 'enumerator' as const,
@@ -45,7 +45,7 @@ export default function DatabaseMigration() {
           salt: 'demo-salt'
         },
         {
-          id: 'super-user-id',
+          id: '550e8400-e29b-41d4-a716-446655440002',
           email: 'super@example.com',
           name: 'Jane Supervisor',
           role: 'supervisor' as const,
@@ -54,7 +54,7 @@ export default function DatabaseMigration() {
           salt: 'demo-salt'
         },
         {
-          id: 'zo-user-id',
+          id: '550e8400-e29b-41d4-a716-446655440003',
           email: 'zo@example.com',
           name: 'ZO User',
           role: 'zo' as const,
@@ -63,7 +63,7 @@ export default function DatabaseMigration() {
           salt: 'demo-salt'
         },
         {
-          id: 'ro-user-id',
+          id: '550e8400-e29b-41d4-a716-446655440004',
           email: 'ro@example.com',
           name: 'RO User',
           role: 'ro' as const,

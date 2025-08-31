@@ -68,11 +68,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // First try demo authentication for development
       if (password === 'password123') {
         const demoUsers = {
-          'admin@example.com': { id: 'admin-user-id', name: 'Admin User', email, role: 'admin' as const },
-          'enum@example.com': { id: 'enum-user-id', name: 'John Enumerator', email, role: 'enumerator' as const },
-          'super@example.com': { id: 'super-user-id', name: 'Jane Supervisor', email, role: 'supervisor' as const },
-          'zo@example.com': { id: 'zo-user-id', name: 'ZO User', email, role: 'zo' as const },
-          'ro@example.com': { id: 'ro-user-id', name: 'RO User', email, role: 'ro' as const },
+          'admin@example.com': { id: '550e8400-e29b-41d4-a716-446655440000', name: 'Admin User', email, role: 'admin' as const },
+          'enum@example.com': { id: '550e8400-e29b-41d4-a716-446655440001', name: 'John Enumerator', email, role: 'enumerator' as const },
+          'super@example.com': { id: '550e8400-e29b-41d4-a716-446655440002', name: 'Jane Supervisor', email, role: 'supervisor' as const },
+          'zo@example.com': { id: '550e8400-e29b-41d4-a716-446655440003', name: 'ZO User', email, role: 'zo' as const },
+          'ro@example.com': { id: '550e8400-e29b-41d4-a716-446655440004', name: 'RO User', email, role: 'ro' as const },
         };
         
         const userData = demoUsers[email as keyof typeof demoUsers];
