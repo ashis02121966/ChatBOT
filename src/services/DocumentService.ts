@@ -11,6 +11,9 @@ export class DocumentService {
     const formData = new FormData();
     formData.append('document', file);
     formData.append('surveyId', surveyId);
+    if (userId) {
+      formData.append('userId', userId);
+    }
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 120000); // 2 minutes timeout

@@ -381,7 +381,7 @@ async function initializeServer() {
                 image_count: processedDoc.metadata.imageCount,
                 processing_method: processedDoc.metadata.processingMethod,
                 is_admin_generated: false,
-                user_id: null,
+                user_id: userId,
                 created_at: new Date().toISOString(),
                 updated_at: new Date().toISOString()
               };
