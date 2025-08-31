@@ -1,4 +1,4 @@
-import pdf from 'pdf-parse';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.js';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
 import fs from 'fs-extra';
@@ -86,23 +86,29 @@ This document has been uploaded to the system but requires manual processing or 
       }
       
       // Primary extraction with pdf-parse
-      let pdfData;
+      let extractedText = '';
+      let pageCount = 0;
       try {
-        pdfData = await pdf(buffer, {
-          normalizeWhitespace: false,
-          disableCombineTextItems: false,
-          max: 0 // Extract all pages
-        });
+        const loadingTask = pdfjsLib.getDocument({ data: buffer });
+        const pdfDocument = await loadingTask.promise;
+        pageCount = pdfDocument.numPages;
+        
+        for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+          const page = await pdfDocument.getPage(pageNum);
+          const textContent = await page.getTextContent();
+          const pageText = textContent.items.map(item => item.str).join(' ');
+          extractedText += pageText + '\n';
+        }
       } catch (pdfError) {
         console.error('PDF parsing failed:', pdfError.message);
         return this.createBasicFallbackContent(file);
       }
       
-      let extractedText = pdfData.text.trim();
-      console.log(`PDF primary extraction: ${extractedText.length} characters from ${pdfData.numpages} pages`);
+      extractedText = extractedText.trim();
+      console.log(`PDF primary extraction: ${extractedText.length} characters from ${pageCount} pages`);
 
       // Enhanced structure preservation
-      extractedText = this.preservePDFStructure(extractedText, pdfData);
+      extractedText = this.preservePDFStructure(extractedText, { numpages: pageCount });
 
       // Check if text extraction is insufficient or fragmented
       if (extractedText.length < 200 || this.isTextFragmented(extractedText)) {
@@ -122,7 +128,7 @@ This document has been uploaded to the system but requires manual processing or 
 
       // Extract metadata and enhance context
       const enhancedText = this.enhanceTextWithMetadata(extractedText, {
-        pageCount: pdfData.numpages,
+        pageCount: pageCount,
         fileType: 'PDF',
         fileName: file.originalname
       });
