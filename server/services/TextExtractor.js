@@ -1,6 +1,5 @@
 import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import { JSDOM } from 'jsdom';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 import mammoth from 'mammoth';
 import XLSX from 'xlsx';
 import fs from 'fs-extra';
