@@ -36,7 +36,7 @@ export default defineConfig({
       output: {
         manualChunks: {
           vendor: ['react', 'react-dom'],
-            icons: ['lucide-react']
+            icons: ['lucide-react'],
           transformers: ['@xenova/transformers']
         }
       }
