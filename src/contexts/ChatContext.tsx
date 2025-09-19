@@ -3,6 +3,7 @@ import { useAuth } from './AuthContext';
 import { useDocuments } from './DocumentContext';
 import { SLMService } from '../services/SLMService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 // Helper function to convert plain text to HTML format
 function convertPlainTextToHTML(text: string): string {
@@ -326,7 +327,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (!user) return;
     
     const newSession: ChatSession = {
-      id: Date.now().toString(),
+      id: uuidv4(),
       surveyId,
       category,
       messages: [],
@@ -355,7 +356,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
     // Add user message
     const userMessage: ChatMessage = {
-      id: `user-${Date.now()}`,
+      id: uuidv4(),
       content,
       sender: 'user',
       timestamp: new Date(),
@@ -435,7 +436,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         
         // Add to unanswered queries
         const unansweredQuery: UnansweredQuery = {
-          id: `query-${Date.now()}`,
+          id: uuidv4(),
           content,
           surveyId: currentSession.surveyId,
           timestamp: new Date(),
@@ -474,7 +475,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Create bot message
       const botMessage: ChatMessage = {
-        id: `bot-${Date.now()}`,
+        id: uuidv4(),
         content: '', // Always use richContent
         richContent: botResponse, // Always display as rich content
         sender: responseType,
@@ -503,7 +504,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       console.error('Error generating response:', error);
       
       const errorMessage: ChatMessage = {
-        id: `bot-${Date.now()}`,
+        id: uuidv4(),
         content: "I apologize, but I encountered an error while processing your question. Please try again or contact support if the issue persists.",
         sender: 'bot',
         timestamp: new Date(),
@@ -568,7 +569,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     // If feedback is negative and we've reached max attempts, add to unanswered queries
     if (!isCorrect && (message.alternativeAttempts || 0) >= 3 && message.originalQuery) {
       const unansweredQuery: UnansweredQuery = {
-        id: `query-${Date.now()}`,
+        id: uuidv4(),
         content: message.originalQuery,
         surveyId: currentSession.surveyId,
         timestamp: new Date(),
@@ -985,7 +986,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
       // Create alternative bot message
       const alternativeBotMessage: ChatMessage = {
-        id: `bot-alt-${Date.now()}`,
+        id: uuidv4(),
         content: '', // Always use richContent
         richContent: botResponse, // Always display as rich content
         sender: responseType,
@@ -1018,7 +1019,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
       
       // If we can't generate an alternative, add to unanswered queries
       const unansweredQuery: UnansweredQuery = {
-        id: `query-${Date.now()}`,
+        id: uuidv4(),
         content: originalQuery,
         surveyId: currentSession.surveyId,
         timestamp: new Date(),
