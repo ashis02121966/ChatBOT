@@ -3,6 +3,7 @@ import { DocumentService } from '../services/DocumentService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
 import { v4 as uuidv4 } from 'uuid';
+import mammoth from 'mammoth';
 
 export interface DocumentChunk {
   id: string;
@@ -1218,15 +1219,21 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const extractWordText = async (file: File): Promise<string> => {
+    console.log(`📄 Starting Word document extraction for: ${file.name}`);
+    console.log(`📊 File details: ${file.size} bytes, type: ${file.type}`);
+    
     try {
-      console.log(`📄 Starting Word document extraction for: ${file.name} (${file.size} bytes)`);
-      const mammoth = await import('mammoth');
+      console.log('✅ Using statically imported Mammoth library');
+      
+      // Convert file to array buffer
       const arrayBuffer = await file.arrayBuffer();
       console.log(`📄 ArrayBuffer created successfully: ${arrayBuffer.byteLength} bytes`);
       
+      // Extract text using mammoth
       const result = await mammoth.extractRawText({ arrayBuffer });
-      console.log(`📄 Mammoth extraction completed: ${result.value.length} characters extracted`);
+      console.log(`📝 Text extraction completed: ${result.value.length} characters extracted`);
       
+      // Log any warnings from mammoth
       if (result.messages && result.messages.length > 0) {
         console.warn('📄 Mammoth extraction warnings:', result.messages);
       }
@@ -1238,7 +1245,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       }
       
       console.log(`✅ Word document extraction successful: ${extractedText.length} characters`);
-      return result.value.trim();
+      return extractedText;
     } catch (error) {
       console.error('❌ Word document extraction failed:', {
         fileName: file.name,
@@ -1346,7 +1353,6 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       console.log('Attempting comprehensive client-side Word image extraction...');
       
       const images = [];
-      const mammoth = await import('mammoth');
       const arrayBuffer = await file.arrayBuffer();
       
       try {
