@@ -142,44 +142,98 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, [user?.id]);
 
   const loadDocuments = async () => {
-    if (isSupabaseConfigured() && user) {
+    if (!user) return;
+
+    if (isSupabaseConfigured()) {
       try {
         console.log('🔄 Loading documents from Supabase...');
-        const { data: documentsData, error } = await supabase!
+        const { data: documentsData, error: docsError } = await supabase!
           .from('documents')
           .select('*')
           .eq('user_id', user.id);
 
-        if (error) {
-          console.error('❌ Error loading documents from Supabase:', error);
+        if (docsError) {
+          console.error('❌ Error loading documents from Supabase:', docsError);
           loadDocumentsFromLocalStorage();
           return;
         }
 
-        if (documentsData && documentsData.length > 0) {
-          const processedDocs = documentsData.map(doc => ({
-            id: doc.id,
-            fileName: doc.file_name,
-            surveyId: doc.survey_id,
-            category: doc.category,
-            content: doc.content,
-            chunks: JSON.parse(doc.chunks || '[]'),
-            images: JSON.parse(doc.images || '[]'),
+        // Load chunks
+        const { data: chunksData, error: chunksError } = await supabase!
+          .from('document_chunks')
+          .select('*')
+          .in('document_id', documentsData?.map(d => d.id) || []);
+
+        if (chunksError) {
+          console.error('❌ Error loading document chunks from Supabase:', chunksError);
+        }
+
+        // Load images
+        const { data: imagesData, error: imagesError } = await supabase!
+          .from('document_images')
+          .select('*')
+          .in('document_id', documentsData?.map(d => d.id) || []);
+
+        if (imagesError) {
+          console.error('❌ Error loading document images from Supabase:', imagesError);
+        }
+
+        if (documentsData) {
+          const docs = documentsData.map(d => {
+            const docChunks = chunksData?.filter(c => c.document_id === d.id) || [];
+            const docImages = imagesData?.filter(i => i.document_id === d.id) || [];
+            
+            return {
+            id: d.id,
+            fileName: d.file_name,
+            surveyId: d.survey_id,
+            category: d.category,
+            content: d.content,
+            chunks: docChunks.map(chunk => ({
+              id: chunk.id,
+              content: chunk.content,
+              metadata: {
+                section: chunk.section,
+                keywords: chunk.keywords,
+                entities: chunk.entities,
+                wordCount: chunk.word_count,
+                characterCount: chunk.character_count,
+                contentType: chunk.content_type,
+                importance: chunk.importance,
+                isAdminAnswer: chunk.is_admin_answer,
+                originalQuestion: chunk.original_question,
+                adminAnswer: chunk.admin_answer,
+                adminAnswerRich: chunk.admin_answer_rich,
+                feedbackScore: chunk.feedback_score,
+                timesUsed: chunk.times_used,
+                correctFeedbackCount: chunk.correct_feedback_count,
+                incorrectFeedbackCount: chunk.incorrect_feedback_count,
+                lastUsed: chunk.last_used ? new Date(chunk.last_used) : null,
+                dateAnswered: chunk.date_answered ? new Date(chunk.date_answered) : null
+              }
+            })),
+            images: docImages.map(image => ({
+              id: image.id,
+              fileName: image.file_name,
+              description: image.description,
+              type: image.image_type,
+              dataUrl: image.data_url
+            })),
             metadata: {
-              fileType: doc.file_type,
-              uploadDate: new Date(doc.upload_date),
-              processedDate: new Date(doc.processed_date),
-              wordCount: doc.word_count,
-              characterCount: doc.character_count,
-              chunkCount: doc.chunk_count,
-              imageCount: doc.image_count,
-              processingMethod: doc.processing_method,
-              isAdminGenerated: doc.is_admin_generated,
-              category: doc.category
+              fileType: d.file_type,
+              uploadDate: new Date(d.upload_date),
+              processedDate: new Date(d.processed_date),
+              wordCount: d.word_count,
+              characterCount: d.character_count,
+              chunkCount: d.chunk_count,
+              imageCount: d.image_count,
+              processingMethod: d.processing_method,
+              isAdminGenerated: d.is_admin_generated
             }
-          }));
-          setDocuments(processedDocs);
-          console.log(`📚 Loaded ${processedDocs.length} documents from Supabase`);
+          });
+          });
+          setDocuments(docs);
+          console.log(`📚 Loaded ${docs.length} documents from Supabase`);
         }
       } catch (error) {
         console.error('❌ Supabase connection error:', error);
@@ -191,72 +245,22 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const loadDocumentsFromLocalStorage = () => {
-    const storageCheck = checkStorageAvailability();
-    if (!storageCheck.available) {
-      console.warn('⚠️ localStorage not available - documents will not persist across sessions');
-      return;
-    }
+    if (!user) return;
     
-    console.log(`📊 Current localStorage size: ${Math.round(getStorageSize() / 1024)}KB`);
-    console.log('🔄 Loading documents from localStorage...');
-    
-    try {
-      // Load client-side processed documents
-      const savedDocuments = localStorage.getItem(STORAGE_KEYS.CLIENT_DOCUMENTS);
-      if (savedDocuments) {
-        const parsedDocuments = JSON.parse(savedDocuments);
-        // Convert date strings back to Date objects
-        const documentsWithDates = parsedDocuments.map((doc: any) => ({
-          ...doc,
-          metadata: {
-            ...doc.metadata,
-            uploadDate: new Date(doc.metadata.uploadDate),
-            processedDate: new Date(doc.metadata.processedDate)
-          }
-        }));
-        setDocuments(documentsWithDates);
-        console.log(`📚 Loaded ${documentsWithDates.length} client-side documents from localStorage`);
-      }
-      
-      // Load server-side processed documents
-      const savedServerDocuments = localStorage.getItem(STORAGE_KEYS.SERVER_DOCUMENTS);
-      if (savedServerDocuments) {
-        const parsedServerDocuments = JSON.parse(savedServerDocuments);
-        // Convert date strings back to Date objects
-        const serverDocumentsWithDates = parsedServerDocuments.map((doc: any) => ({
-          ...doc,
-          metadata: {
-            ...doc.metadata,
-            uploadDate: new Date(doc.metadata.uploadDate),
-            processedDate: new Date(doc.metadata.processedDate)
-          }
-        }));
-        setServerProcessedDocuments(serverDocumentsWithDates);
-        console.log(`🖥️ Loaded ${serverDocumentsWithDates.length} server-side documents from localStorage`);
-      }
-      
-      const totalLoaded = (savedDocuments ? JSON.parse(savedDocuments).length : 0) + 
-                         (savedServerDocuments ? JSON.parse(savedServerDocuments).length : 0);
-      
-      if (totalLoaded > 0) {
-        console.log(`✅ Successfully loaded ${totalLoaded} total documents from localStorage`);
-      } else {
-        console.log('📝 No saved documents found in localStorage - starting fresh');
-      }
-      
-    } catch (error) {
-      console.error('❌ Error loading documents from localStorage:', error);
-      // Reset to empty arrays if there's an error loading
-      setDocuments([]);
-      setServerProcessedDocuments([]);
-      
-      // Try to clear corrupted data
+    const savedDocs = localStorage.getItem(`documents_${user.id}`);
+    if (savedDocs) {
       try {
-        localStorage.removeItem(STORAGE_KEYS.CLIENT_DOCUMENTS);
-        localStorage.removeItem(STORAGE_KEYS.SERVER_DOCUMENTS);
-        console.log('🧹 Cleared potentially corrupted localStorage data');
-      } catch (clearError) {
-        console.error('❌ Error clearing corrupted localStorage data:', clearError);
+        const docs = JSON.parse(savedDocs).map((doc: any) => ({
+          ...doc,
+          metadata: {
+            ...doc.metadata,
+            uploadDate: new Date(doc.metadata.uploadDate),
+            processedDate: new Date(doc.metadata.processedDate)
+          }
+        }));
+        setDocuments(docs);
+      } catch (error) {
+        console.error('Error loading documents:', error);
       }
     }
   };
@@ -280,8 +284,6 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         survey_id: doc.surveyId,
         category: doc.category,
         content: doc.content,
-        chunks: JSON.stringify(doc.chunks),
-        images: JSON.stringify(doc.images),
         file_type: doc.metadata.fileType,
         upload_date: doc.metadata.uploadDate.toISOString(),
         processed_date: doc.metadata.processedDate.toISOString(),
@@ -291,7 +293,9 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         image_count: doc.metadata.imageCount,
         processing_method: doc.metadata.processingMethod,
         is_admin_generated: doc.metadata.isAdminGenerated || false,
-        user_id: user.id
+        user_id: user.id,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
       }));
 
       const { error } = await supabase!
@@ -300,13 +304,76 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       if (error) {
         console.error('❌ Error saving documents to Supabase:', error);
-        saveDocumentsToLocalStorage();
-      } else {
-        console.log(`💾 Saved ${documentsToSave.length} documents to Supabase`);
+        return;
       }
+
+      // Save chunks separately
+      const chunksToSave = documents.flatMap(doc => 
+        doc.chunks.map(chunk => ({
+          id: chunk.id,
+          document_id: doc.id,
+          content: chunk.content,
+          section: chunk.metadata.section,
+          keywords: chunk.metadata.keywords,
+          entities: chunk.metadata.entities,
+          word_count: chunk.metadata.wordCount,
+          character_count: chunk.metadata.characterCount,
+          content_type: chunk.metadata.contentType,
+          importance: chunk.metadata.importance,
+          is_admin_answer: chunk.metadata.isAdminAnswer || false,
+          original_question: chunk.metadata.originalQuestion,
+          admin_answer: chunk.metadata.adminAnswer,
+          admin_answer_rich: chunk.metadata.adminAnswerRich,
+          feedback_score: chunk.metadata.feedbackScore || 0,
+          times_used: chunk.metadata.timesUsed || 0,
+          correct_feedback_count: chunk.metadata.correctFeedbackCount || 0,
+          incorrect_feedback_count: chunk.metadata.incorrectFeedbackCount || 0,
+          last_used: chunk.metadata.lastUsed ? new Date(chunk.metadata.lastUsed).toISOString() : null,
+          date_answered: chunk.metadata.dateAnswered ? new Date(chunk.metadata.dateAnswered).toISOString() : null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString()
+        }))
+      );
+
+      if (chunksToSave.length > 0) {
+        const { error: chunksError } = await supabase!
+          .from('document_chunks')
+          .upsert(chunksToSave, { onConflict: 'id' });
+
+        if (chunksError) {
+          console.error('❌ Error saving document chunks to Supabase:', chunksError);
+        }
+      }
+
+      // Save images separately
+      const imagesToSave = documents.flatMap(doc => 
+        doc.images.map(image => ({
+          id: image.id,
+          document_id: doc.id,
+          chunk_id: null, // Will be updated if image belongs to specific chunk
+          file_name: image.fileName,
+          description: image.description,
+          image_type: image.type,
+          data_url: image.dataUrl,
+          created_at: new Date().toISOString()
+        }))
+      );
+
+      if (imagesToSave.length > 0) {
+        const { error: imagesError } = await supabase!
+          .from('document_images')
+          .upsert(imagesToSave, { onConflict: 'id' });
+
+        if (imagesError) {
+          console.error('❌ Error saving document images to Supabase:', imagesError);
+        }
+      }
+
+      console.log('✅ Documents saved to Supabase successfully');
     } catch (error) {
-      console.error('❌ Supabase save error:', error);
-      saveDocumentsToLocalStorage();
+      console.error('❌ Supabase documents save error:', error);
+      // Fallback to localStorage
+      localStorage.setItem(`documents_${user.id}`, JSON.stringify(documents));
     }
   };
 
