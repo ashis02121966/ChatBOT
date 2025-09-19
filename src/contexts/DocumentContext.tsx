@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { DocumentService } from '../services/DocumentService';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
 import { useAuth } from './AuthContext';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface DocumentChunk {
   id: string;
@@ -506,7 +507,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       const chunks = createChunks(extractedText, file.name);
       
       const processedDocument: ProcessedDocument = {
-        id: Date.now().toString(),
+        id: uuidv4(),
         fileName: file.name,
         surveyId: surveyId,
         category: category,
@@ -567,7 +568,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
       const newQAContent = `\n\nQ: ${question}\nA: ${answer}`;
       const newChunk: DocumentChunk = {
-        id: `admin-chunk-${Date.now()}`,
+        id: uuidv4(),
         content: `Q: ${question}\nA: ${cleanHTMLForStorage(answer)}`,
         metadata: {
           section: 'Admin Q&A',
@@ -620,7 +621,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       } else {
         // Create new admin knowledge document
         const newAdminDoc: ProcessedDocument = {
-          id: `admin-knowledge-${Date.now()}`,
+          id: uuidv4(),
           fileName: adminKnowledgeFileName,
           surveyId: 'general',
           content: `Q: ${question}\nA: ${answer}`,
@@ -1180,7 +1181,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     const entities = extractEntitiesFromText(content);
     
     return {
-      id: `${fileName}-chunk-${index}-${Date.now()}`,
+      id: uuidv4(),
       content: content.trim(),
       metadata: {
         section: `Section ${index}`,
