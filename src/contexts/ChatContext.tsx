@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect, ReactNode } from
 import { useAuth } from './AuthContext';
 import { useDocuments } from './DocumentContext';
 import { SLMService } from '../services/SLMService';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
 
 // Helper function to convert plain text to HTML format
 function convertPlainTextToHTML(text: string): string {
@@ -98,7 +99,46 @@ export function ChatProvider({ children }: ChatProviderProps) {
 
   // Load global unanswered queries on component mount (independent of user)
   useEffect(() => {
-    // Load global unanswered queries (shared across all users for admin access)
+    loadUnansweredQueries();
+  }, []);
+
+  const loadUnansweredQueries = async () => {
+    if (isSupabaseConfigured()) {
+      try {
+        console.log('🔄 Loading unanswered queries from Supabase...');
+        const { data: queriesData, error } = await supabase!
+          .from('unanswered_queries')
+          .select('*')
+          .eq('status', 'pending')
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('❌ Error loading unanswered queries from Supabase:', error);
+          loadUnansweredQueriesFromLocalStorage();
+          return;
+        }
+
+        if (queriesData) {
+          const queries = queriesData.map(q => ({
+            id: q.id,
+            content: q.content,
+            surveyId: q.survey_id,
+            timestamp: new Date(q.created_at),
+            userId: q.user_id
+          }));
+          setUnansweredQueries(queries);
+          console.log(`📚 Loaded ${queries.length} unanswered queries from Supabase`);
+        }
+      } catch (error) {
+        console.error('❌ Supabase connection error:', error);
+        loadUnansweredQueriesFromLocalStorage();
+      }
+    } else {
+      loadUnansweredQueriesFromLocalStorage();
+    }
+  };
+
+  const loadUnansweredQueriesFromLocalStorage = () => {
     const savedQueries = localStorage.getItem('globalUnansweredQueries');
     if (savedQueries) {
       try {
@@ -112,42 +152,168 @@ export function ChatProvider({ children }: ChatProviderProps) {
     } else {
       setUnansweredQueries([]);
     }
-  }, []); // Empty dependency array - only run once on mount
+  };
 
   // Handle user-specific sessions when user changes
   useEffect(() => {
     if (user) {
-      // Load user's sessions or initialize empty
-      const savedSessions = localStorage.getItem(`chatSessions_${user.id}`);
-      if (savedSessions) {
-        try {
-          const sessions = JSON.parse(savedSessions);
-          setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
-        } catch (error) {
-          console.error('Error loading user sessions:', error);
-        }
-      }
-      
-      // Clear current session when switching users
-      setCurrentSession(null);
+      loadUserSessions();
     } else if (user === null) {
       // User logged out, clear only user-specific data (keep global unanswered queries)
       setCurrentSession(null);
     }
   }, [user]);
 
-  // Save user sessions to localStorage when they change
+  const loadUserSessions = async () => {
+    if (!user) return;
+
+    if (isSupabaseConfigured()) {
+      try {
+        console.log('🔄 Loading user sessions from Supabase...');
+        const { data: sessionsData, error } = await supabase!
+          .from('chat_sessions')
+          .select(`
+            *,
+            chat_messages (*)
+          `)
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: false });
+
+        if (error) {
+          console.error('❌ Error loading sessions from Supabase:', error);
+          loadUserSessionsFromLocalStorage();
+          return;
+        }
+
+        if (sessionsData) {
+          const sessions = sessionsData.map(s => ({
+            id: s.id,
+            surveyId: s.survey_id,
+            category: s.category,
+            messages: s.chat_messages.map(m => ({
+              id: m.id,
+              content: m.content,
+              richContent: m.rich_content,
+              sender: m.sender,
+              timestamp: new Date(m.created_at),
+              images: m.images ? JSON.parse(m.images) : undefined,
+              feedbackProvided: m.feedback_provided,
+              feedbackType: m.feedback_type,
+              alternativeAttempts: m.alternative_attempts,
+              originalQuery: m.original_query
+            })),
+            createdAt: new Date(s.created_at)
+          }));
+          setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
+          console.log(`📚 Loaded ${sessions.length} sessions from Supabase`);
+        }
+      } catch (error) {
+        console.error('❌ Supabase connection error:', error);
+        loadUserSessionsFromLocalStorage();
+      }
+    } else {
+      loadUserSessionsFromLocalStorage();
+    }
+  };
+
+  const loadUserSessionsFromLocalStorage = () => {
+    if (!user) return;
+    
+    const savedSessions = localStorage.getItem(`chatSessions_${user.id}`);
+    if (savedSessions) {
+      try {
+        const sessions = JSON.parse(savedSessions);
+        setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
+      } catch (error) {
+        console.error('Error loading user sessions:', error);
+      }
+    }
+  };
+
+  // Save user sessions to Supabase/localStorage when they change
   useEffect(() => {
     if (user && userSessions[user.id]) {
-      localStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
+      if (isSupabaseConfigured()) {
+        saveUserSessionsToSupabase();
+      } else {
+        localStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
+      }
     }
   }, [userSessions, user?.id]);
 
+  const saveUserSessionsToSupabase = async () => {
+    if (!user || !userSessions[user.id]) return;
+
+    try {
+      const sessions = userSessions[user.id];
+      
+      for (const session of sessions) {
+        try {
+          // Upsert session
+          const { error: sessionError } = await supabase!
+            .from('chat_sessions')
+            .upsert({
+              id: session.id,
+              user_id: user.id,
+              survey_id: session.surveyId,
+              category: session.category,
+              message_count: session.messages.length,
+              created_at: session.createdAt.toISOString(),
+              updated_at: new Date().toISOString()
+            }, { onConflict: 'id' });
+
+          if (sessionError) {
+            console.error('❌ Error saving session to Supabase:', sessionError);
+            continue;
+          }
+
+          // Upsert messages
+          for (const message of session.messages) {
+            const { error: messageError } = await supabase!
+              .from('chat_messages')
+              .upsert({
+                id: message.id,
+                session_id: session.id,
+                content: message.content,
+                rich_content: message.richContent,
+                sender: message.sender,
+                feedback_type: message.feedbackType,
+                feedback_provided: message.feedbackProvided,
+                alternative_attempts: message.alternativeAttempts,
+                original_query: message.originalQuery,
+                images: message.images ? JSON.stringify(message.images) : null,
+                created_at: message.timestamp.toISOString()
+              }, { onConflict: 'id' });
+
+            if (messageError) {
+              console.error('❌ Error saving message to Supabase:', messageError);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error processing session:', error);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Supabase sessions save error:', error);
+      // Fallback to localStorage
+      localStorage.setItem(`chatSessions_${user.id}`, JSON.stringify(userSessions[user.id]));
+    }
+  };
+
   // Save global queries to localStorage when they change (independent of user)
   useEffect(() => {
-    localStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
-    console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
-  }, [unansweredQueries]); // Removed user?.id dependency
+    if (isSupabaseConfigured()) {
+      saveUnansweredQueriesToSupabase();
+    } else {
+      localStorage.setItem('globalUnansweredQueries', JSON.stringify(unansweredQueries));
+      console.log(`Saved ${unansweredQueries.length} global unanswered queries to localStorage`);
+    }
+  }, [unansweredQueries]);
+
+  const saveUnansweredQueriesToSupabase = async () => {
+    // Only save new queries, not update existing ones
+    // This is handled when queries are added
+  };
 
   const createSession = (surveyId: string, category?: string) => {
     if (!user) return;
@@ -268,6 +434,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
           timestamp: new Date(),
           userId: user.id,
         };
+        await addUnansweredQueryToSupabase(unansweredQuery);
         setUnansweredQueries(prev => [...prev, unansweredQuery]);
         console.log(`Added unanswered query to global list: "${content}" from user ${user.id}`);
       }
@@ -354,6 +521,31 @@ export function ChatProvider({ children }: ChatProviderProps) {
     }
   };
 
+  const addUnansweredQueryToSupabase = async (query: UnansweredQuery) => {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      const { error } = await supabase!
+        .from('unanswered_queries')
+        .insert({
+          id: query.id,
+          content: query.content,
+          survey_id: query.surveyId,
+          user_id: query.userId,
+          status: 'pending',
+          created_at: query.timestamp.toISOString()
+        });
+
+      if (error) {
+        console.error('❌ Error saving unanswered query to Supabase:', error);
+      } else {
+        console.log('✅ Unanswered query saved to Supabase');
+      }
+    } catch (error) {
+      console.error('❌ Supabase unanswered query save error:', error);
+    }
+  };
+
   const provideFeedback = (messageId: string, isCorrect: boolean) => {
     if (!currentSession) return;
 
@@ -375,6 +567,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
         timestamp: new Date(),
         userId: user?.id || 'unknown',
       };
+      addUnansweredQueryToSupabase(unansweredQuery);
       setUnansweredQueries(prev => [...prev, unansweredQuery]);
       console.log(`Added unanswered query after max attempts: "${message.originalQuery}" from user ${user?.id || 'unknown'}`);
     }
@@ -428,6 +621,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
     dataUrl: string;
     type: string;
   }> = []) => {
+    answerQueryInSupabase(queryId, answer, images);
     const query = unansweredQueries.find(q => q.id === queryId);
     if (!query) return;
 
@@ -441,6 +635,33 @@ export function ChatProvider({ children }: ChatProviderProps) {
     setUnansweredQueries(prev => prev.filter(q => q.id !== queryId));
 
     console.log(`✅ Query answered and added to knowledge base with ${images.length} images`);
+  };
+
+  const answerQueryInSupabase = async (queryId: string, answer: string, images: any[]) => {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      // Update the query status to answered
+      const { error: updateError } = await supabase!
+        .from('unanswered_queries')
+        .update({
+          status: 'answered',
+          answered_at: new Date().toISOString(),
+          answered_by: user?.id,
+          answer_content: answer,
+          answer_rich_content: answer,
+          answer_images: JSON.stringify(images)
+        })
+        .eq('id', queryId);
+
+      if (updateError) {
+        console.error('❌ Error updating answered query in Supabase:', updateError);
+      } else {
+        console.log('✅ Query marked as answered in Supabase');
+      }
+    } catch (error) {
+      console.error('❌ Supabase answer query error:', error);
+    }
   };
 
   // Enhanced relevance ranking function

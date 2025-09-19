@@ -1,5 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { DocumentService } from '../services/DocumentService';
+import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { useAuth } from './AuthContext';
 
 export interface DocumentChunk {
   id: string;
@@ -132,9 +134,63 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   const [documents, setDocuments] = useState<ProcessedDocument[]>([]);
   const [serverProcessedDocuments, setServerProcessedDocuments] = useState<ProcessedDocument[]>([]);
   const [documentService] = useState(() => new DocumentService());
+  const { user } = useAuth();
 
   // Load documents from localStorage on component mount
   useEffect(() => {
+    loadDocuments();
+  }, [user?.id]);
+
+  const loadDocuments = async () => {
+    if (isSupabaseConfigured() && user) {
+      try {
+        console.log('🔄 Loading documents from Supabase...');
+        const { data: documentsData, error } = await supabase!
+          .from('documents')
+          .select('*')
+          .eq('user_id', user.id);
+
+        if (error) {
+          console.error('❌ Error loading documents from Supabase:', error);
+          loadDocumentsFromLocalStorage();
+          return;
+        }
+
+        if (documentsData && documentsData.length > 0) {
+          const processedDocs = documentsData.map(doc => ({
+            id: doc.id,
+            fileName: doc.file_name,
+            surveyId: doc.survey_id,
+            category: doc.category,
+            content: doc.content,
+            chunks: JSON.parse(doc.chunks || '[]'),
+            images: JSON.parse(doc.images || '[]'),
+            metadata: {
+              fileType: doc.file_type,
+              uploadDate: new Date(doc.upload_date),
+              processedDate: new Date(doc.processed_date),
+              wordCount: doc.word_count,
+              characterCount: doc.character_count,
+              chunkCount: doc.chunk_count,
+              imageCount: doc.image_count,
+              processingMethod: doc.processing_method,
+              isAdminGenerated: doc.is_admin_generated,
+              category: doc.category
+            }
+          }));
+          setDocuments(processedDocs);
+          console.log(`📚 Loaded ${processedDocs.length} documents from Supabase`);
+        }
+      } catch (error) {
+        console.error('❌ Supabase connection error:', error);
+        loadDocumentsFromLocalStorage();
+      }
+    } else {
+      loadDocumentsFromLocalStorage();
+    }
+  };
+
+  const loadDocumentsFromLocalStorage = () => {
     const storageCheck = checkStorageAvailability();
     if (!storageCheck.available) {
       console.warn('⚠️ localStorage not available - documents will not persist across sessions');
@@ -203,10 +259,58 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
         console.error('❌ Error clearing corrupted localStorage data:', clearError);
       }
     }
-  }, []); // Empty dependency array - only run once on mount
+  };
 
   // Save client-side documents to localStorage whenever they change
   useEffect(() => {
+    if (isSupabaseConfigured() && user) {
+      saveDocumentsToSupabase();
+    } else {
+      saveDocumentsToLocalStorage();
+    }
+  }, [documents, user?.id]);
+
+  const saveDocumentsToSupabase = async () => {
+    if (!user || documents.length === 0) return;
+
+    try {
+      const documentsToSave = documents.map(doc => ({
+        id: doc.id,
+        file_name: doc.fileName,
+        survey_id: doc.surveyId,
+        category: doc.category,
+        content: doc.content,
+        chunks: JSON.stringify(doc.chunks),
+        images: JSON.stringify(doc.images),
+        file_type: doc.metadata.fileType,
+        upload_date: doc.metadata.uploadDate.toISOString(),
+        processed_date: doc.metadata.processedDate.toISOString(),
+        word_count: doc.metadata.wordCount,
+        character_count: doc.metadata.characterCount,
+        chunk_count: doc.metadata.chunkCount,
+        image_count: doc.metadata.imageCount,
+        processing_method: doc.metadata.processingMethod,
+        is_admin_generated: doc.metadata.isAdminGenerated || false,
+        user_id: user.id
+      }));
+
+      const { error } = await supabase!
+        .from('documents')
+        .upsert(documentsToSave, { onConflict: 'id' });
+
+      if (error) {
+        console.error('❌ Error saving documents to Supabase:', error);
+        saveDocumentsToLocalStorage();
+      } else {
+        console.log(`💾 Saved ${documentsToSave.length} documents to Supabase`);
+      }
+    } catch (error) {
+      console.error('❌ Supabase save error:', error);
+      saveDocumentsToLocalStorage();
+    }
+  };
+
+  const saveDocumentsToLocalStorage = () => {
     const storageCheck = checkStorageAvailability();
     if (!storageCheck.available) {
       return;
@@ -232,7 +336,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
       localStorage.removeItem(STORAGE_KEYS.CLIENT_DOCUMENTS);
       console.log('🗑️ Cleared client-side documents from localStorage (no documents to save)');
     }
-  }, [documents]);
+  };
 
   // Save server-side documents to localStorage whenever they change
   useEffect(() => {
@@ -374,6 +478,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     dataUrl: string;
     type: string;
   }> = []) => {
+    updateAdminKnowledgeInSupabase(question, answer, surveyId, images);
     console.log(`📝 Updating admin knowledge with question: "${question}" (will be persisted to localStorage)`);
     console.log(`🖼️ Received ${images.length} images for admin answer`);
     console.log(`📄 Admin answer contains HTML: ${answer.includes('<')}`);
@@ -475,7 +580,33 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     console.log(`✅ Admin knowledge updated and will be automatically persisted to localStorage`);
   };
 
+  const updateAdminKnowledgeInSupabase = async (question: string, answer: string, surveyId: string, images: any[]) => {
+    if (!isSupabaseConfigured() || !user) return;
+
+    try {
+      const { error } = await supabase!
+        .from('admin_knowledge')
+        .insert({
+          original_question: question,
+          admin_answer: answer,
+          admin_answer_rich: answer,
+          survey_id: surveyId,
+          images: JSON.stringify(images),
+          created_by: user.id
+        });
+
+      if (error) {
+        console.error('❌ Error saving admin knowledge to Supabase:', error);
+      } else {
+        console.log('✅ Admin knowledge saved to Supabase');
+      }
+    } catch (error) {
+      console.error('❌ Supabase admin knowledge save error:', error);
+    }
+  };
+
   const updateChunkFeedback = (chunkId: string, feedbackType: 'correct' | 'incorrect') => {
+    updateChunkFeedbackInSupabase(chunkId, feedbackType);
     setDocuments(prev => prev.map(doc => ({
       ...doc,
       chunks: doc.chunks.map(chunk => {
@@ -502,7 +633,42 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     })));
   };
 
+  const updateChunkFeedbackInSupabase = async (chunkId: string, feedbackType: 'correct' | 'incorrect') => {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      // Find the document containing this chunk
+      const doc = documents.find(d => d.chunks.some(c => c.id === chunkId));
+      if (!doc) return;
+
+      const chunk = doc.chunks.find(c => c.id === chunkId);
+      if (!chunk) return;
+
+      const feedbackDelta = feedbackType === 'correct' ? 1 : -1;
+      const newFeedbackScore = (chunk.metadata.feedbackScore || 0) + feedbackDelta;
+
+      // Update the document in Supabase with the new chunk feedback
+      const updatedChunks = doc.chunks.map(c => 
+        c.id === chunkId 
+          ? { ...c, metadata: { ...c.metadata, feedbackScore: newFeedbackScore } }
+          : c
+      );
+
+      const { error } = await supabase!
+        .from('documents')
+        .update({ chunks: JSON.stringify(updatedChunks) })
+        .eq('id', doc.id);
+
+      if (error) {
+        console.error('❌ Error updating chunk feedback in Supabase:', error);
+      }
+    } catch (error) {
+      console.error('❌ Supabase chunk feedback update error:', error);
+    }
+  };
+
   const deleteDocument = (documentId: string) => {
+    deleteDocumentFromSupabase(documentId);
     console.log(`🗑️ Deleting document with ID: ${documentId}`);
     
     // Remove from client-side documents
@@ -522,6 +688,25 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     });
     
     console.log(`✅ Document ${documentId} deleted successfully`);
+  };
+
+  const deleteDocumentFromSupabase = async (documentId: string) => {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      const { error } = await supabase!
+        .from('documents')
+        .delete()
+        .eq('id', documentId);
+
+      if (error) {
+        console.error('❌ Error deleting document from Supabase:', error);
+      } else {
+        console.log(`✅ Document ${documentId} deleted from Supabase`);
+      }
+    } catch (error) {
+      console.error('❌ Supabase document deletion error:', error);
+    }
   };
 
   const searchDocuments = (query: string, surveyId?: string, category?: string): DocumentChunk[] => {
@@ -966,13 +1151,45 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
 
   const extractWordText = async (file: File): Promise<string> => {
     try {
+      console.log(`📄 Starting Word document extraction for: ${file.name} (${file.size} bytes)`);
       const mammoth = await import('mammoth');
       const arrayBuffer = await file.arrayBuffer();
+      console.log(`📄 ArrayBuffer created successfully: ${arrayBuffer.byteLength} bytes`);
+      
       const result = await mammoth.extractRawText({ arrayBuffer });
+      console.log(`📄 Mammoth extraction completed: ${result.value.length} characters extracted`);
+      
+      if (result.messages && result.messages.length > 0) {
+        console.warn('📄 Mammoth extraction warnings:', result.messages);
+      }
+      
+      const extractedText = result.value.trim();
+      
+      if (!extractedText || extractedText.length < 10) {
+        throw new Error(`Insufficient text extracted from Word document. Only ${extractedText.length} characters found. The document may be empty, corrupted, or contain only images/tables.`);
+      }
+      
+      console.log(`✅ Word document extraction successful: ${extractedText.length} characters`);
       return result.value.trim();
     } catch (error) {
-      console.error('Word extraction failed:', error);
-      throw new Error('Failed to extract text from Word document.');
+      console.error('❌ Word document extraction failed:', {
+        fileName: file.name,
+        fileSize: file.size,
+        fileType: file.type,
+        error: error.message,
+        stack: error.stack
+      });
+      
+      // Provide more specific error messages
+      if (error.message.includes('zip')) {
+        throw new Error(`Failed to extract text from Word document "${file.name}": The file appears to be corrupted or is not a valid Word document. Please try saving the document again or use a different file format.`);
+      } else if (error.message.includes('password') || error.message.includes('encrypted')) {
+        throw new Error(`Failed to extract text from Word document "${file.name}": The document appears to be password-protected or encrypted. Please remove the password protection and try again.`);
+      } else if (error.message.includes('Insufficient text')) {
+        throw new Error(error.message);
+      } else {
+        throw new Error(`Failed to extract text from Word document "${file.name}": ${error.message}. Please ensure the file is a valid Word document (.docx format is recommended).`);
+      }
     }
   };
 
