@@ -184,53 +184,53 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
             const docImages = imagesData?.filter(i => i.document_id === d.id) || [];
             
             return {
-            id: d.id,
-            fileName: d.file_name,
-            surveyId: d.survey_id,
-            category: d.category,
-            content: d.content,
-            chunks: docChunks.map(chunk => ({
-              id: chunk.id,
-              content: chunk.content,
+              id: d.id,
+              fileName: d.file_name,
+              surveyId: d.survey_id,
+              category: d.category,
+              content: d.content,
+              chunks: docChunks.map(chunk => ({
+                id: chunk.id,
+                content: chunk.content,
+                metadata: {
+                  section: chunk.section,
+                  keywords: chunk.keywords,
+                  entities: chunk.entities,
+                  wordCount: chunk.word_count,
+                  characterCount: chunk.character_count,
+                  contentType: chunk.content_type,
+                  importance: chunk.importance,
+                  isAdminAnswer: chunk.is_admin_answer,
+                  originalQuestion: chunk.original_question,
+                  adminAnswer: chunk.admin_answer,
+                  adminAnswerRich: chunk.admin_answer_rich,
+                  feedbackScore: chunk.feedback_score,
+                  timesUsed: chunk.times_used,
+                  correctFeedbackCount: chunk.correct_feedback_count,
+                  incorrectFeedbackCount: chunk.incorrect_feedback_count,
+                  lastUsed: chunk.last_used ? new Date(chunk.last_used) : null,
+                  dateAnswered: chunk.date_answered ? new Date(chunk.date_answered) : null
+                }
+              })),
+              images: docImages.map(image => ({
+                id: image.id,
+                fileName: image.file_name,
+                description: image.description,
+                type: image.image_type,
+                dataUrl: image.data_url
+              })),
               metadata: {
-                section: chunk.section,
-                keywords: chunk.keywords,
-                entities: chunk.entities,
-                wordCount: chunk.word_count,
-                characterCount: chunk.character_count,
-                contentType: chunk.content_type,
-                importance: chunk.importance,
-                isAdminAnswer: chunk.is_admin_answer,
-                originalQuestion: chunk.original_question,
-                adminAnswer: chunk.admin_answer,
-                adminAnswerRich: chunk.admin_answer_rich,
-                feedbackScore: chunk.feedback_score,
-                timesUsed: chunk.times_used,
-                correctFeedbackCount: chunk.correct_feedback_count,
-                incorrectFeedbackCount: chunk.incorrect_feedback_count,
-                lastUsed: chunk.last_used ? new Date(chunk.last_used) : null,
-                dateAnswered: chunk.date_answered ? new Date(chunk.date_answered) : null
+                fileType: d.file_type,
+                uploadDate: new Date(d.upload_date),
+                processedDate: new Date(d.processed_date),
+                wordCount: d.word_count,
+                characterCount: d.character_count,
+                chunkCount: d.chunk_count,
+                imageCount: d.image_count,
+                processingMethod: d.processing_method,
+                isAdminGenerated: d.is_admin_generated
               }
-            })),
-            images: docImages.map(image => ({
-              id: image.id,
-              fileName: image.file_name,
-              description: image.description,
-              type: image.image_type,
-              dataUrl: image.data_url
-            })),
-            metadata: {
-              fileType: d.file_type,
-              uploadDate: new Date(d.upload_date),
-              processedDate: new Date(d.processed_date),
-              wordCount: d.word_count,
-              characterCount: d.character_count,
-              chunkCount: d.chunk_count,
-              imageCount: d.image_count,
-              processingMethod: d.processing_method,
-              isAdminGenerated: d.is_admin_generated
-            }
-          });
+            };
           });
           setDocuments(docs);
           console.log(`📚 Loaded ${docs.length} documents from Supabase`);
