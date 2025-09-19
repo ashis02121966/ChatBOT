@@ -222,7 +222,14 @@ export function ChatProvider({ children }: ChatProviderProps) {
     const savedSessions = localStorage.getItem(`chatSessions_${user.id}`);
     if (savedSessions) {
       try {
-        const sessions = JSON.parse(savedSessions);
+        const sessions = JSON.parse(savedSessions).map((session: any) => ({
+          ...session,
+          createdAt: new Date(session.createdAt),
+          messages: session.messages.map((message: any) => ({
+            ...message,
+            timestamp: new Date(message.timestamp)
+          }))
+        }));
         setUserSessions(prev => ({ ...prev, [user.id]: sessions }));
       } catch (error) {
         console.error('Error loading user sessions:', error);

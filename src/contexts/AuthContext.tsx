@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { supabase, isSupabaseConfigured } from '../lib/supabase';
+import { v4 as uuidv4 } from 'uuid';
 
 export interface User {
   id: string;
@@ -135,11 +136,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     console.log('🔄 Using mock authentication...');
     
     const mockUsers: User[] = [
-      { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-      { id: '2', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
-      { id: '3', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
-      { id: '4', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
-      { id: '5', name: 'RO User', email: 'ro@example.com', role: 'ro' },
+      { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
+      { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
+      { id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
+      { id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
+      { id: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', name: 'RO User', email: 'ro@example.com', role: 'ro' },
     ];
 
     const foundUser = mockUsers.find(u => u.email === email);
