@@ -14,9 +14,10 @@ export default function Login() {
     setLoading(true);
     setError('');
 
+    console.log('🔐 Attempting login for:', email);
     const success = await login(email, password);
     if (!success) {
-      setError('Invalid credentials');
+      setError('Invalid credentials. Please use the demo credentials shown below or check your Supabase configuration.');
     }
     setLoading(false);
   };
@@ -92,13 +93,30 @@ export default function Login() {
 
         <div className="mt-8">
           <h3 className="text-sm font-medium text-gray-700 mb-3">Demo Credentials:</h3>
+          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
+            <p className="text-xs text-blue-800">
+              <strong>Note:</strong> If Supabase is not configured or demo users don't exist in your Supabase project, 
+              the app will automatically fall back to mock authentication using these credentials.
+            </p>
+          </div>
           <div className="space-y-2">
             {demoCredentials.map((cred, index) => (
-              <div key={index} className="text-xs bg-white p-2 rounded border">
+              <div 
+                key={index} 
+                className="text-xs bg-white p-2 rounded border cursor-pointer hover:bg-gray-50 transition-colors"
+                onClick={() => {
+                  setEmail(cred.email);
+                  setPassword(cred.password);
+                }}
+                title="Click to auto-fill credentials"
+              >
                 <strong>{cred.role}:</strong> {cred.email} / {cred.password}
               </div>
             ))}
           </div>
+          <p className="text-xs text-gray-500 mt-2">
+            💡 Click on any credential above to auto-fill the login form
+          </p>
         </div>
       </div>
     </div>

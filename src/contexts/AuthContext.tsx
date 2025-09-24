@@ -86,6 +86,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string): Promise<boolean> => {
     if (isSupabaseConfigured()) {
       try {
+        console.log('🔄 Attempting Supabase authentication...');
         // Try Supabase authentication first
         const { data, error } = await supabase!.auth.signInWithPassword({
           email,
@@ -93,7 +94,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         });
 
         if (error) {
-          console.error('❌ Supabase auth error:', error);
+          console.warn('❌ Supabase auth failed, falling back to mock auth:', error.message);
           return await mockLogin(email, password);
         }
 
@@ -122,9 +123,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('✅ User logged in via Supabase:', user.email);
             return true;
           }
+        } else {
+          console.warn('❌ No user data from Supabase, falling back to mock auth');
+          return await mockLogin(email, password);
         }
       } catch (error) {
-        console.error('❌ Supabase login error:', error);
+        console.warn('❌ Supabase connection error, falling back to mock auth:', error);
         return await mockLogin(email, password);
       }
     }
@@ -133,7 +137,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const mockLogin = async (email: string, password: string): Promise<boolean> => {
-    console.log('🔄 Using mock authentication...');
+    console.log('🔄 Using mock authentication for:', email);
     
     const mockUsers: User[] = [
       { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
@@ -147,9 +151,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     if (foundUser && password === 'password123') {
       setUser(foundUser);
       localStorage.setItem('user', JSON.stringify(foundUser));
-      console.log('✅ User logged in via mock auth:', foundUser.email);
+      console.log('✅ User logged in via mock auth:', foundUser.email, `(${foundUser.role})`);
       return true;
     }
+    
+    console.log('❌ Mock authentication failed - invalid credentials');
     return false;
   };
 
