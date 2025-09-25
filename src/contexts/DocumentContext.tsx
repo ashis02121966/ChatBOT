@@ -1252,3 +1252,20 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     // Remove HTML tags but preserve the text content
     return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
   };
+
+  return (
+    <DocumentContext.Provider value={{
+      documents,
+      processDocument,
+      addDocument,
+      updateAdminKnowledgeDocument,
+      updateChunkFeedback,
+      deleteDocument,
+      searchDocuments,
+      searchImages,
+      getDocumentsBySurvey
+    }}>
+      {children}
+    </DocumentContext.Provider>
+  );
+}
