@@ -96,8 +96,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (error) {
           console.error('❌ Supabase auth failed:', error.message);
-          // Fallback to mock authentication for any Supabase auth failure
-          return tryMockAuthentication(email, password);
+          return false;
         }
 
         if (data.user) {
@@ -110,8 +109,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (profileError) {
             console.error('❌ Error fetching user profile:', profileError);
-            // Fallback to mock authentication if user profile not found
-            return tryMockAuthentication(email, password);
+            return false;
           }
 
           if (userProfile) {
@@ -127,41 +125,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('✅ User logged in via Supabase:', user.email);
             return true;
           } else {
-            // Fallback to mock authentication if no user profile found
-            return tryMockAuthentication(email, password);
+            console.error('❌ No user profile found for:', email);
+            return false;
           }
         }
       } catch (error) {
         console.error('❌ Supabase connection error:', error);
-        // Fallback to mock authentication for connection errors
-        return tryMockAuthentication(email, password);
+        return false;
       }
     } else {
-      // No Supabase configuration - use mock authentication directly
-      return tryMockAuthentication(email, password);
-    }
-    
-    // Final fallback to mock authentication
-    return tryMockAuthentication(email, password);
-  };
-
-  const tryMockAuthentication = (email: string, password: string): boolean => {
-    const mockUsers: User[] = [
-      { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-      { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
-      { id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
-      { id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
-      { id: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', name: 'RO User', email: 'ro@example.com', role: 'ro' },
-    ];
-
-    const foundMockUser = mockUsers.find(u => u.email === email);
-    if (foundMockUser && password === 'password123') {
-      console.log('🔄 Using mock authentication as fallback for:', email);
-      const mockUser = { ...foundMockUser, isMockUser: true };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      console.log('✅ User logged in via mock auth fallback:', foundMockUser.email, `(${foundMockUser.role})`);
-      return true;
+      console.log('⚠️ Supabase not configured');
+      return false;
     }
     
     return false;
@@ -176,14 +150,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     setUser(null);
     localStorage.removeItem('user');
-    // Clear only user-specific chat sessions, preserve global unanswered queries
-    Object.keys(localStorage).forEach(key => {
-      if (key.startsWith('chatSessions_')) {
-        localStorage.removeItem(key);
-      }
-      // Note: We intentionally do NOT remove 'globalUnansweredQueries' here
-      // as they should persist across all user sessions for admin access
-    });
     console.log('✅ User logged out');
   };
 

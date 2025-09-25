@@ -261,7 +261,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   }, [userSessions, user?.id]);
 
   const saveUserSessionsToSupabase = async () => {
-    if (!user || !userSessions[user.id] || user.isMockUser) return;
+    if (!user || !userSessions[user.id]) return;
 
     try {
       const sessions = userSessions[user.id];
@@ -541,7 +541,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   const addUnansweredQueryToSupabase = async (query: UnansweredQuery) => {
-    if (!isSupabaseConfigured() || user?.isMockUser) return;
+    if (!isSupabaseConfigured() || !user) return;
 
     try {
       const { error } = await supabase!
@@ -657,7 +657,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   const answerQueryInSupabase = async (queryId: string, answer: string, images: any[]) => {
-    if (!isSupabaseConfigured() || user?.isMockUser) return;
+    if (!isSupabaseConfigured() || !user) return;
 
     try {
       // Add timeout for update operations

@@ -92,11 +92,11 @@ export default function Login() {
         </form>
 
         <div className="mt-8">
-          <h3 className="text-sm font-medium text-gray-700 mb-3">Demo Credentials:</h3>
-          <div className="mb-3 p-3 bg-blue-50 border border-blue-200 rounded-md">
-            <p className="text-xs text-blue-800">
-              <strong>Note:</strong> If Supabase is not configured or demo users don't exist in your Supabase project, 
-              the app will automatically fall back to mock authentication using these credentials.
+          <h3 className="text-sm font-medium text-gray-700 mb-3">Available User Accounts:</h3>
+          <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
+            <p className="text-xs text-green-800">
+              <strong>Supabase Users:</strong> These users are now stored in your Supabase database. 
+              Run the migration to create them if they don't exist yet.
             </p>
           </div>
           <div className="space-y-2">

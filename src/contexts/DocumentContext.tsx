@@ -277,7 +277,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, [documents, user?.id]);
 
   const saveDocumentsToSupabase = async () => {
-    if (!user || documents.length === 0 || user.isMockUser) return;
+    if (!user || documents.length === 0) return;
 
     try {
       const documentsToSave = documents.map(doc => ({
@@ -760,7 +760,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const deleteDocumentFromSupabase = async (documentId: string) => {
-    if (!isSupabaseConfigured() || user?.isMockUser) return;
+    if (!isSupabaseConfigured() || !user) return;
 
     try {
       const { error } = await supabase!
