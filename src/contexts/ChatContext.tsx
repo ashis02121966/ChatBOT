@@ -660,8 +660,13 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (!isSupabaseConfigured()) return;
 
     try {
+      // Add timeout for update operations
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Supabase update timeout')), 10000)
+      );
+      
       // Update the query status to answered
-      const { error: updateError } = await supabase!
+      const updatePromise = supabase!
         .from('unanswered_queries')
         .update({
           status: 'answered',
@@ -672,14 +677,19 @@ export function ChatProvider({ children }: ChatProviderProps) {
           answer_images: JSON.stringify(images)
         })
         .eq('id', queryId);
+      
+      const { error: updateError } = await Promise.race([
+        updatePromise,
+        timeoutPromise
+      ]);
 
       if (updateError) {
-        console.error('❌ Error updating answered query in Supabase:', updateError);
+        console.warn('❌ Error updating answered query in Supabase:', updateError);
       } else {
         console.log('✅ Query marked as answered in Supabase');
       }
     } catch (error) {
-      console.error('❌ Supabase answer query error:', error);
+      console.warn('❌ Supabase answer query error:', error.message || error);
     }
   };
 
