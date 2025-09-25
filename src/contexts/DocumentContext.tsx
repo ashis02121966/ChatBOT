@@ -277,7 +277,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, [documents, user?.id]);
 
   const saveDocumentsToSupabase = async () => {
-    if (!user || documents.length === 0) return;
+    if (!user || documents.length === 0 || user.isMockUser) return;
 
     try {
       const documentsToSave = documents.map(doc => ({

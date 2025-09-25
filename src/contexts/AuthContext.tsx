@@ -7,6 +7,7 @@ export interface User {
   name: string;
   email: string;
   role: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
+  isMockUser?: boolean;
 }
 
 interface AuthContextType {
@@ -58,7 +59,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
               id: userProfile.id,
               name: userProfile.name,
               email: userProfile.email,
-              role: userProfile.role
+              role: userProfile.role,
+              isMockUser: false
             };
             setUser(user);
             console.log('✅ User authenticated via Supabase:', user.email);
@@ -116,7 +118,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
               id: userProfile.id,
               name: userProfile.name,
               email: userProfile.email,
-              role: userProfile.role
+              role: userProfile.role,
+              isMockUser: false
             };
             setUser(user);
             localStorage.setItem('user', JSON.stringify(user));
@@ -149,8 +152,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
     const foundUser = mockUsers.find(u => u.email === email);
     if (foundUser && password === 'password123') {
-      setUser(foundUser);
-      localStorage.setItem('user', JSON.stringify(foundUser));
+      const mockUser = { ...foundUser, isMockUser: true };
+      setUser(mockUser);
+      localStorage.setItem('user', JSON.stringify(mockUser));
       console.log('✅ User logged in via mock auth:', foundUser.email, `(${foundUser.role})`);
       return true;
     }
