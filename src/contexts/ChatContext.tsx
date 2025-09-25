@@ -657,7 +657,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
   };
 
   const answerQueryInSupabase = async (queryId: string, answer: string, images: any[]) => {
-    if (!isSupabaseConfigured() || !user) return;
+    if (!isSupabaseConfigured() || !user || user.isMockUser) return;
 
     try {
       // Add timeout for update operations

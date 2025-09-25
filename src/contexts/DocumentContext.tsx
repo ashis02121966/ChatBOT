@@ -277,7 +277,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   }, [documents, user?.id]);
 
   const saveDocumentsToSupabase = async () => {
-    if (!user || documents.length === 0) return;
+    if (!user || documents.length === 0 || user.isMockUser) return;
 
     try {
       const documentsToSave = documents.map(doc => ({
@@ -650,7 +650,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const updateAdminKnowledgeInSupabase = async (question: string, answer: string, surveyId: string, images: any[]) => {
-    if (!isSupabaseConfigured() || !user) return;
+    if (!isSupabaseConfigured() || !user || user.isMockUser) return;
 
     try {
       const { error } = await supabase!
@@ -703,7 +703,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const updateChunkFeedbackInSupabase = async (chunkId: string, feedbackType: 'correct' | 'incorrect') => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || user?.isMockUser) return;
 
     try {
       // Find the document containing this chunk
@@ -760,7 +760,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const deleteDocumentFromSupabase = async (documentId: string) => {
-    if (!isSupabaseConfigured() || !user) return;
+    if (!isSupabaseConfigured() || !user || user.isMockUser) return;
 
     try {
       const { error } = await supabase!

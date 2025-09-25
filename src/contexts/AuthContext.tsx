@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
   isMockUser?: boolean;
+  isMockUser?: boolean;
 }
 
 interface AuthContextType {
@@ -86,6 +87,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    // First try Supabase authentication
     if (isSupabaseConfigured()) {
       try {
         console.log('🔄 Attempting Supabase authentication...');
@@ -118,7 +120,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
               name: userProfile.name,
               email: userProfile.email,
               role: userProfile.role,
-              isMockUser: false
             };
             setUser(user);
             localStorage.setItem('user', JSON.stringify(user));
@@ -126,19 +127,51 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return true;
           } else {
             console.error('❌ No user profile found for:', email);
-            return false;
+            // Fall back to mock authentication
+            return tryMockAuthentication(email, password);
           }
         }
       } catch (error) {
         console.error('❌ Supabase connection error:', error);
-        return false;
+        // Fall back to mock authentication on connection error
+        return tryMockAuthentication(email, password);
       }
-    } else {
-      console.log('⚠️ Supabase not configured');
-      return false;
     }
     
-    return false;
+    // If Supabase not configured, use mock authentication
+    return tryMockAuthentication(email, password);
+  };
+
+  const tryMockAuthentication = (email: string, password: string): boolean => {
+    console.log('🔄 Attempting mock authentication for:', email);
+    
+    // Mock user credentials
+    const mockUsers = [
+      { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'admin' as const, password: 'password123' },
+      { id: '2', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' as const, password: 'password123' },
+      { id: '3', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' as const, password: 'password123' },
+      { id: '4', name: 'ZO User', email: 'zo@example.com', role: 'zo' as const, password: 'password123' },
+      { id: '5', name: 'RO User', email: 'ro@example.com', role: 'ro' as const, password: 'password123' },
+    ];
+
+    const mockUser = mockUsers.find(u => u.email === email && u.password === password);
+    
+    if (mockUser) {
+      const user: User = {
+        id: mockUser.id,
+        name: mockUser.name,
+        email: mockUser.email,
+        role: mockUser.role,
+        isMockUser: true
+      };
+      setUser(user);
+      localStorage.setItem('user', JSON.stringify(user));
+      console.log('✅ Mock user logged in:', user.email);
+      return true;
+    } else {
+      console.log('❌ Mock authentication failed for:', email);
+      return false;
+    }
   };
 
   const logout = () => {

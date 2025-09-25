@@ -95,8 +95,8 @@ export default function Login() {
           <h3 className="text-sm font-medium text-gray-700 mb-3">Available User Accounts:</h3>
           <div className="mb-3 p-3 bg-green-50 border border-green-200 rounded-md">
             <p className="text-xs text-green-800">
-              <strong>Supabase Users:</strong> These users are now stored in your Supabase database. 
-              Run the migration to create them if they don't exist yet.
+              <strong>Demo Users:</strong> These users work with both Supabase (if configured) and mock authentication fallback.
+              If Supabase authentication fails, the app will automatically use mock authentication.
             </p>
           </div>
           <div className="space-y-2">
