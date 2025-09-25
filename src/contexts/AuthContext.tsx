@@ -86,18 +86,37 @@ export function AuthProvider({ children }: AuthProviderProps) {
   };
 
   const login = async (email: string, password: string): Promise<boolean> => {
+    // Check if this is a mock user first - bypass Supabase entirely for mock users
+    const mockUsers: User[] = [
+      { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
+      { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
+      { id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
+      { id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
+      { id: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', name: 'RO User', email: 'ro@example.com', role: 'ro' },
+    ];
+
+    const foundMockUser = mockUsers.find(u => u.email === email);
+    if (foundMockUser && password === 'password123') {
+      console.log('🔄 Using mock authentication for:', email);
+      const mockUser = { ...foundMockUser, isMockUser: true };
+      setUser(mockUser);
+      localStorage.setItem('user', JSON.stringify(mockUser));
+      console.log('✅ User logged in via mock auth:', foundMockUser.email, `(${foundMockUser.role})`);
+      return true;
+    }
+
+    // Only try Supabase authentication for non-mock users
     if (isSupabaseConfigured()) {
       try {
         console.log('🔄 Attempting Supabase authentication...');
-        // Try Supabase authentication first
         const { data, error } = await supabase!.auth.signInWithPassword({
           email,
           password
         });
 
         if (error) {
-          console.warn('❌ Supabase auth failed, falling back to mock auth:', error.message);
-          return await mockLogin(email, password);
+          console.error('❌ Supabase auth failed:', error.message);
+          return false;
         }
 
         if (data.user) {
@@ -110,7 +129,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (profileError) {
             console.error('❌ Error fetching user profile:', profileError);
-            return await mockLogin(email, password);
+            return false;
           }
 
           if (userProfile) {
@@ -126,40 +145,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
             console.log('✅ User logged in via Supabase:', user.email);
             return true;
           }
-        } else {
-          console.warn('❌ No user data from Supabase, falling back to mock auth');
-          return await mockLogin(email, password);
         }
       } catch (error) {
-        console.warn('❌ Supabase connection error, falling back to mock auth:', error);
-        return await mockLogin(email, password);
+        console.error('❌ Supabase connection error:', error);
+        return false;
       }
     }
     
-    return await mockLogin(email, password);
-  };
-
-  const mockLogin = async (email: string, password: string): Promise<boolean> => {
-    console.log('🔄 Using mock authentication for:', email);
-    
-    const mockUsers: User[] = [
-      { id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11', name: 'Admin User', email: 'admin@example.com', role: 'admin' },
-      { id: 'b1eebc99-9c0b-4ef8-bb6d-6bb9bd380a22', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' },
-      { id: 'c2eebc99-9c0b-4ef8-bb6d-6bb9bd380a33', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' },
-      { id: 'd3eebc99-9c0b-4ef8-bb6d-6bb9bd380a44', name: 'ZO User', email: 'zo@example.com', role: 'zo' },
-      { id: 'e4eebc99-9c0b-4ef8-bb6d-6bb9bd380a55', name: 'RO User', email: 'ro@example.com', role: 'ro' },
-    ];
-
-    const foundUser = mockUsers.find(u => u.email === email);
-    if (foundUser && password === 'password123') {
-      const mockUser = { ...foundUser, isMockUser: true };
-      setUser(mockUser);
-      localStorage.setItem('user', JSON.stringify(mockUser));
-      console.log('✅ User logged in via mock auth:', foundUser.email, `(${foundUser.role})`);
-      return true;
-    }
-    
-    console.log('❌ Mock authentication failed - invalid credentials');
     return false;
   };
 
