@@ -110,7 +110,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (profileError) {
             console.error('❌ Error fetching user profile:', profileError);
-            return false;
+            // Fallback to mock authentication if user profile not found
+            return tryMockAuthentication(email, password);
           }
 
           if (userProfile) {
@@ -125,6 +126,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             localStorage.setItem('user', JSON.stringify(user));
             console.log('✅ User logged in via Supabase:', user.email);
             return true;
+          } else {
+            // Fallback to mock authentication if no user profile found
+            return tryMockAuthentication(email, password);
           }
         }
       } catch (error) {
@@ -137,7 +141,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
       return tryMockAuthentication(email, password);
     }
     
-    return false;
+    // Final fallback to mock authentication
+    return tryMockAuthentication(email, password);
   };
 
   const tryMockAuthentication = (email: string, password: string): boolean => {
