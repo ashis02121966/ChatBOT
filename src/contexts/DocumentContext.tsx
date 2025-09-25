@@ -760,7 +760,7 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
   };
 
   const deleteDocumentFromSupabase = async (documentId: string) => {
-    if (!isSupabaseConfigured()) return;
+    if (!isSupabaseConfigured() || user?.isMockUser) return;
 
     try {
       const { error } = await supabase!
