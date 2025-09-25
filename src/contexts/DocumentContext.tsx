@@ -1129,4 +1129,126 @@ export function DocumentProvider({ children }: DocumentProviderProps) {
     });
 
     return Object.entries(wordCount)
-      .sort(([,a], [,b]) => b
+      .sort(([,a], [,b]) => b - a)
+      .slice(0, 10)
+      .map(([word]) => word);
+  };
+
+  const extractEntitiesFromText = (text: string): string[] => {
+    // Simple entity extraction - look for capitalized words and common patterns
+    const entities = [];
+    const words = text.split(/\s+/);
+    
+    words.forEach(word => {
+      // Remove punctuation
+      const cleanWord = word.replace(/[^\w]/g, '');
+      
+      // Capitalized words (potential proper nouns)
+      if (cleanWord.length > 2 && cleanWord[0] === cleanWord[0].toUpperCase() && cleanWord.slice(1) === cleanWord.slice(1).toLowerCase()) {
+        entities.push(cleanWord);
+      }
+    });
+    
+    // Remove duplicates and return top 5
+    return [...new Set(entities)].slice(0, 5);
+  };
+
+  const createChunks = (text: string, fileName: string): DocumentChunk[] => {
+    const chunks: DocumentChunk[] = [];
+    const chunkSize = 1000; // characters
+    const overlap = 200; // character overlap between chunks
+    
+    for (let i = 0; i < text.length; i += chunkSize - overlap) {
+      const chunkText = text.slice(i, i + chunkSize);
+      const wordCount = chunkText.split(/\s+/).filter(word => word.length > 0).length;
+      
+      chunks.push({
+        id: uuidv4(),
+        content: chunkText,
+        metadata: {
+          section: `Section ${chunks.length + 1}`,
+          keywords: extractKeywordsFromText(chunkText),
+          entities: extractEntitiesFromText(chunkText),
+          wordCount: wordCount,
+          characterCount: chunkText.length,
+          contentType: 'general',
+          importance: 1.0
+        }
+      });
+    }
+    
+    return chunks;
+  };
+
+  // Helper functions for text extraction
+  const extractPDFText = async (file: File): Promise<string> => {
+    // This would require a PDF parsing library like pdf-parse
+    // For now, return a placeholder
+    return `PDF content from ${file.name} - Client-side PDF parsing not implemented yet`;
+  };
+
+  const extractWordText = async (file: File): Promise<string> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      return result.value;
+    } catch (error) {
+      console.error('Error extracting Word document text:', error);
+      throw new Error('Failed to extract text from Word document');
+    }
+  };
+
+  const extractExcelText = async (file: File): Promise<string> => {
+    // This would require a library like xlsx
+    // For now, return a placeholder
+    return `Excel content from ${file.name} - Client-side Excel parsing not implemented yet`;
+  };
+
+  const extractPDFImages = async (file: File): Promise<any[]> => {
+    // PDF image extraction would require a specialized library
+    return [];
+  };
+
+  const extractWordImages = async (file: File): Promise<any[]> => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const result = await mammoth.extractRawText({ arrayBuffer });
+      // mammoth can extract images, but it's complex - placeholder for now
+      return [];
+    } catch (error) {
+      console.warn('Word image extraction failed:', error);
+      return [];
+    }
+  };
+
+  const extractImagesFromHTML = (html: string): Array<{
+    id: string;
+    fileName: string;
+    description: string;
+    dataUrl: string;
+    type: string;
+  }> => {
+    const images = [];
+    const imgRegex = /<img[^>]+src="([^"]+)"[^>]*>/gi;
+    let match;
+    
+    while ((match = imgRegex.exec(html)) !== null) {
+      const src = match[1];
+      if (src.startsWith('data:')) {
+        images.push({
+          id: uuidv4(),
+          fileName: `embedded_image_${images.length + 1}`,
+          description: 'Embedded image from admin answer',
+          dataUrl: src,
+          type: 'embedded'
+        });
+      }
+    }
+    
+    return images;
+  };
+
+  const cleanHTMLForStorage = (html: string): string => {
+    // Remove HTML tags but preserve the text content
+    return html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ').trim();
+  };
