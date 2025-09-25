@@ -107,14 +107,25 @@ export function ChatProvider({ children }: ChatProviderProps) {
     if (isSupabaseConfigured()) {
       try {
         console.log('🔄 Loading unanswered queries from Supabase...');
-        const { data: queriesData, error } = await supabase!
+        
+        // Add timeout and better error handling for network issues
+        const timeoutPromise = new Promise((_, reject) => 
+          setTimeout(() => reject(new Error('Supabase request timeout')), 10000)
+        );
+        
+        const supabasePromise = supabase!
           .from('unanswered_queries')
           .select('*')
           .eq('status', 'pending')
           .order('created_at', { ascending: false });
+        
+        const { data: queriesData, error } = await Promise.race([
+          supabasePromise,
+          timeoutPromise
+        ]);
 
         if (error) {
-          console.error('❌ Error loading unanswered queries from Supabase:', error);
+          console.warn('❌ Error loading unanswered queries from Supabase:', error);
           loadUnansweredQueriesFromLocalStorage();
           return;
         }
@@ -131,7 +142,7 @@ export function ChatProvider({ children }: ChatProviderProps) {
           console.log(`📚 Loaded ${queries.length} unanswered queries from Supabase`);
         }
       } catch (error) {
-        console.error('❌ Supabase connection error:', error);
+        console.warn('❌ Supabase connection error (falling back to localStorage):', error.message || error);
         loadUnansweredQueriesFromLocalStorage();
       }
     } else {
