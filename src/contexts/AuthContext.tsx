@@ -8,6 +8,7 @@ export interface User {
   email: string;
   role: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
   isMockUser?: boolean;
+  isMockUser?: boolean;
 }
 
 interface AuthContextType {
@@ -97,7 +98,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         if (error) {
           console.error('❌ Supabase auth failed:', error.message);
-          return false;
+          // Fall back to mock authentication on Supabase auth failure
+          return tryMockAuthentication(email, password);
         }
 
         if (data.user) {
@@ -110,7 +112,8 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
           if (profileError) {
             console.error('❌ Error fetching user profile:', profileError);
-            return false;
+            // Fall back to mock authentication if profile fetch fails
+            return tryMockAuthentication(email, password);
           }
 
           if (userProfile) {
