@@ -8,7 +8,6 @@ export interface User {
   email: string;
   role: 'admin' | 'enumerator' | 'supervisor' | 'zo' | 'ro';
   isMockUser?: boolean;
-  isMockUser?: boolean;
 }
 
 interface AuthContextType {
