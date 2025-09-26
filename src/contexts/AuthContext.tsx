@@ -149,11 +149,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     // Mock user credentials
     const mockUsers = [
-      { id: '1', name: 'Admin User', email: 'admin@example.com', role: 'admin' as const, password: 'password123' },
-      { id: '2', name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' as const, password: 'password123' },
-      { id: '3', name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' as const, password: 'password123' },
-      { id: '4', name: 'ZO User', email: 'zo@example.com', role: 'zo' as const, password: 'password123' },
-      { id: '5', name: 'RO User', email: 'ro@example.com', role: 'ro' as const, password: 'password123' },
+      { id: uuidv4(), name: 'Admin User', email: 'admin@example.com', role: 'admin' as const, password: 'password123' },
+      { id: uuidv4(), name: 'John Enumerator', email: 'enum@example.com', role: 'enumerator' as const, password: 'password123' },
+      { id: uuidv4(), name: 'Jane Supervisor', email: 'super@example.com', role: 'supervisor' as const, password: 'password123' },
+      { id: uuidv4(), name: 'ZO User', email: 'zo@example.com', role: 'zo' as const, password: 'password123' },
+      { id: uuidv4(), name: 'RO User', email: 'ro@example.com', role: 'ro' as const, password: 'password123' },
     ];
 
     const mockUser = mockUsers.find(u => u.email === email && u.password === password);
