@@ -1,0 +1,12 @@
+@@ .. @@
+-- Insert unanswered queries
+INSERT INTO public.unanswered_queries (id, content, survey_id, user_id, status, priority, category, tags, context, created_at) VALUES
+-(gen_random_uuid(), 'How do I handle households with multiple families?', 'survey-1', (SELECT id FROM public.users WHERE email = 'enum@example.com'), 'pending', 2, 'General Questions', ARRAY['household', 'multiple', 'families'], '{"survey_type": "census", "difficulty": "medium"}', now() - interval '3 days'),
+-(gen_random_uuid(), 'What if the GPS coordinates are not accurate?', 'survey-1', (SELECT id FROM public.users WHERE email = 'super@example.com'), 'pending', 1, 'General Questions', ARRAY['gps', 'coordinates', 'accuracy'], '{"survey_type": "census", "difficulty": "low"}', now() - interval '2 days'),
+-(gen_random_uuid(), 'How to calculate household expenditure totals?', 'survey-2', (SELECT id FROM public.users WHERE email = 'zo@example.com'), 'pending', 3, 'Detail Schedule', ARRAY['expenditure', 'calculation', 'totals'], '{"survey_type": "economic", "difficulty": "high"}', now() - interval '1 day'),
+-(gen_random_uuid(), 'What age groups are considered for immunization records?', 'survey-3', (SELECT id FROM public.users WHERE email = 'ro@example.com'), 'pending', 2, 'Listing', ARRAY['immunization', 'age', 'groups'], '{"survey_type": "health", "difficulty": "medium"}', now() - interval '6 hours')
++(gen_random_uuid(), 'How do I handle households with multiple families?', 'survey-1', current_setting('app.enum_user_id')::uuid, 'pending', 2, 'General Questions', ARRAY['household', 'multiple', 'families'], '{"survey_type": "census", "difficulty": "medium"}', now() - interval '3 days'),
++(gen_random_uuid(), 'What if the GPS coordinates are not accurate?', 'survey-1', current_setting('app.super_user_id')::uuid, 'pending', 1, 'General Questions', ARRAY['gps', 'coordinates', 'accuracy'], '{"survey_type": "census", "difficulty": "low"}', now() - interval '2 days'),
++(gen_random_uuid(), 'How to calculate household expenditure totals?', 'survey-2', current_setting('app.zo_user_id')::uuid, 'pending', 3, 'Detail Schedule', ARRAY['expenditure', 'calculation', 'totals'], '{"survey_type": "economic", "difficulty": "high"}', now() - interval '1 day'),
++(gen_random_uuid(), 'What age groups are considered for immunization records?', 'survey-3', current_setting('app.ro_user_id')::uuid, 'pending', 2, 'Listing', ARRAY['immunization', 'age', 'groups'], '{"survey_type": "health", "difficulty": "medium"}', now() - interval '6 hours')
+ ON CONFLICT (id) DO NOTHING;
