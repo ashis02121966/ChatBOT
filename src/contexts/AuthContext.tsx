@@ -133,6 +133,9 @@ export function AuthProvider({ children }: AuthProviderProps) {
             return tryMockAuthentication(email, password);
           }
         }
+        
+        // If we reach here, something unexpected happened, fall back to mock
+        return tryMockAuthentication(email, password);
       } catch (error) {
         console.error('❌ Supabase connection error:', error);
         // Fall back to mock authentication on connection error
